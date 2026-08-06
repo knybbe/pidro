@@ -14,11 +14,27 @@ import {
   type Suit,
 } from '../engine'
 
-const BOT_DELAY_MS = 550
+const PLAY_BOT_DELAY_MS = 550
+const BID_DELAY_KEY = 'pidro-bid-delay-sec'
+
+export type BidDelaySec = 1 | 2 | 3 | 4 | 5
+
+function loadBidDelay(): BidDelaySec {
+  try {
+    const v = Number(localStorage.getItem(BID_DELAY_KEY))
+    if (v >= 1 && v <= 5) return v as BidDelaySec
+  } catch {
+    /* ignore */
+  }
+  return 2
+}
 
 interface GameStore {
   state: GameState
   botTimer: ReturnType<typeof setTimeout> | null
+  /** Seconds to wait before each robot bid (1–5). Default 2. */
+  bidDelaySec: BidDelaySec
+  setBidDelaySec: (sec: BidDelaySec) => void
   start: (difficulties: [Difficulty, Difficulty, Difficulty]) => void
   bid: (bid: number | null) => void
   pickTrump: (suit: Suit) => void
@@ -32,18 +48,29 @@ interface GameStore {
 
 function applyHuman(
   get: () => GameStore,
-  set: (partial: Partial<GameStore> | ((s: GameStore) => Partial<GameStore>)) => void,
+  set: (
+    partial: Partial<GameStore> | ((s: GameStore) => Partial<GameStore>),
+  ) => void,
   updater: (state: GameState) => GameState,
 ) {
   const next = updater(get().state)
   set({ state: next })
-  // schedule bots
   queueMicrotask(() => get().kickBots())
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
   state: createLobbyState(),
   botTimer: null,
+  bidDelaySec: loadBidDelay(),
+
+  setBidDelaySec: (sec) => {
+    set({ bidDelaySec: sec })
+    try {
+      localStorage.setItem(BID_DELAY_KEY, String(sec))
+    } catch {
+      /* ignore */
+    }
+  },
 
   start: (difficulties) => {
     clearBot(get, set)
@@ -95,10 +122,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   kickBots: () => {
     clearBot(get, set)
     const run = () => {
-      const { state } = get()
+      const { state, bidDelaySec } = get()
       const seat = actingSeat(state)
       if (seat === null) return
       if (state.seats[seat].kind !== 'bot') return
+
+      const phaseBefore = state.phase
 
       try {
         const action = botAct(state, seat)
@@ -116,14 +145,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       const again = actingSeat(get().state)
       if (again !== null && get().state.seats[again].kind === 'bot') {
-        const timer = setTimeout(run, BOT_DELAY_MS)
+        // After a bid, wait the full bid delay so each call is visible one-at-a-time
+        const delay =
+          phaseBefore === 'bidding' || get().state.phase === 'bidding'
+            ? bidDelaySec * 1000
+            : PLAY_BOT_DELAY_MS
+        const timer = setTimeout(run, delay)
         set({ botTimer: timer })
       }
     }
 
     const seat = actingSeat(get().state)
     if (seat !== null && get().state.seats[seat].kind === 'bot') {
-      const timer = setTimeout(run, BOT_DELAY_MS)
+      const { state, bidDelaySec } = get()
+      // First bot bid in a sequence also uses bid delay (pause before reveal)
+      const delay =
+        state.phase === 'bidding' ? bidDelaySec * 1000 : PLAY_BOT_DELAY_MS
+      const timer = setTimeout(run, delay)
       set({ botTimer: timer })
     }
   },

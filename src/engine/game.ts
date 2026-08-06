@@ -406,10 +406,11 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     )
 
   if (handOver) {
+    // Keep the last trick visible on the table until the player continues
     return finishHand({
       ...state,
       hands,
-      currentTrick: [],
+      currentTrick,
       completedTricks,
       pointsTaken,
       activeSeats: [],

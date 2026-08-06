@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import {
   canPass,
   legalBids,
@@ -9,10 +9,11 @@ import {
   type Seat,
   type Suit,
 } from '../engine'
-import { useGameStore } from '../store/gameStore'
+import { useGameStore, type BidDelaySec } from '../store/gameStore'
 import { CardView } from './CardView'
 
 const SUITS: Suit[] = ['S', 'H', 'C', 'D'] // spades, hearts, clubs, diamonds
+const BID_DELAYS: BidDelaySec[] = [1, 2, 3, 4, 5]
 
 export function Table({ onShowRules }: { onShowRules: () => void }) {
   const state = useGameStore((s) => s.state)
@@ -22,6 +23,10 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   const continueNextHand = useGameStore((s) => s.continueNextHand)
   const doRematch = useGameStore((s) => s.doRematch)
   const backToLobby = useGameStore((s) => s.backToLobby)
+  const bidDelaySec = useGameStore((s) => s.bidDelaySec)
+  const setBidDelaySec = useGameStore((s) => s.setBidDelaySec)
+
+  const continueRef = useRef<HTMLButtonElement>(null)
 
   const humanSeat: Seat = 0
   const humanTurn =
@@ -36,10 +41,36 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
       ? new Set(legalPlays(state, humanSeat).map((c) => c.id))
       : new Set<string>()
 
+  const showContinue =
+    state.phase === 'hand_result' || state.phase === 'game_over'
+
+  // Keep Continue / Rematch focused so Enter / Space advances
+  useEffect(() => {
+    if (showContinue) {
+      // Defer so the button is in the DOM after paint
+      const id = requestAnimationFrame(() => continueRef.current?.focus())
+      return () => cancelAnimationFrame(id)
+    }
+  }, [showContinue, state.phase, state.handResult])
+
+  // Prefer the live last trick; fall back to last completed if empty
+  const displayTrick =
+    state.currentTrick.length > 0
+      ? state.currentTrick
+      : state.completedTricks.length > 0 &&
+          (state.phase === 'hand_result' || state.phase === 'game_over')
+        ? state.completedTricks[state.completedTricks.length - 1]
+        : state.currentTrick
+
   return (
     <div className="table-screen">
       <header className="top-bar">
-        <button type="button" className="icon-btn" onClick={backToLobby} aria-label="Lobby">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={backToLobby}
+          aria-label="Lobby"
+        >
           ←
         </button>
         <div className="scores">
@@ -53,9 +84,31 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
             <strong>{state.scores[1]}</strong>
           </div>
         </div>
-        <button type="button" className="icon-btn" onClick={onShowRules} aria-label="Rules">
-          ?
-        </button>
+        <div className="top-bar-right">
+          <select
+            className="delay-select"
+            value={bidDelaySec}
+            onChange={(e) =>
+              setBidDelaySec(Number(e.target.value) as BidDelaySec)
+            }
+            aria-label="Bid delay in seconds"
+            title="Bid delay"
+          >
+            {BID_DELAYS.map((s) => (
+              <option key={s} value={s}>
+                {s}s
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onShowRules}
+            aria-label="Rules"
+          >
+            ?
+          </button>
+        </div>
       </header>
 
       <div className="felt">
@@ -63,6 +116,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
           label={seatLabel(state, 2)}
           count={state.hands[2].length}
           bidStatus={bidStatusFor(state, 2)}
+          bidFresh={isLatestBid(state, 2)}
           active={isActive(state, 2)}
           position="north"
         />
@@ -71,6 +125,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
             label={seatLabel(state, 1)}
             count={state.hands[1].length}
             bidStatus={bidStatusFor(state, 1)}
+            bidFresh={isLatestBid(state, 1)}
             active={isActive(state, 1)}
             position="west"
           />
@@ -94,7 +149,10 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
 
             {(state.phase === 'bidding' ||
               state.phase === 'choose_trump' ||
-              (state.bids.length > 0 && state.phase === 'playing')) && (
+              (state.bids.length > 0 &&
+                (state.phase === 'playing' ||
+                  state.phase === 'hand_result' ||
+                  state.phase === 'game_over'))) && (
               <div className="bid-log" aria-live="polite">
                 <div className="bid-log-title">
                   {state.phase === 'bidding' ? 'Bidding' : 'Bids this hand'}
@@ -145,12 +203,12 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               </div>
             )}
 
-            {state.phase !== 'bidding' && (
+            {state.phase !== 'bidding' && state.phase !== 'choose_trump' && (
               <div className="trick-area" aria-live="polite">
-                {state.currentTrick.length === 0 && state.phase === 'playing' && (
+                {displayTrick.length === 0 && state.phase === 'playing' && (
                   <span className="trick-empty">Trick</span>
                 )}
-                {state.currentTrick.map((p) => (
+                {displayTrick.map((p) => (
                   <div key={p.card.id} className={`trick-card seat-${p.seat}`}>
                     <CardView card={p.card} small />
                   </div>
@@ -158,17 +216,29 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               </div>
             )}
             <p className="status-msg">{state.message}</p>
-            {state.phase === 'playing' && (
+            {(state.phase === 'playing' ||
+              state.phase === 'hand_result' ||
+              state.phase === 'game_over') && (
               <p className="points-live">
                 Points this hand — Us {state.pointsTaken[0]} · Them{' '}
                 {state.pointsTaken[1]}
               </p>
             )}
+            {state.handResult &&
+              (state.phase === 'hand_result' || state.phase === 'game_over') && (
+                <p className="hand-result-line">
+                  {state.phase === 'game_over' ? 'Match over · ' : ''}
+                  {state.handResult.made ? 'Bid made' : 'Set!'} · Us{' '}
+                  {fmtDelta(state.handResult.teamScoreDelta[0])} · Them{' '}
+                  {fmtDelta(state.handResult.teamScoreDelta[1])}
+                </p>
+              )}
           </div>
           <SeatSlot
             label={seatLabel(state, 3)}
             count={state.hands[3].length}
             bidStatus={bidStatusFor(state, 3)}
+            bidFresh={isLatestBid(state, 3)}
             active={isActive(state, 3)}
             position="east"
           />
@@ -179,13 +249,25 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
             <span className="you-bid"> · {bidStatusFor(state, 0)}</span>
           )}
         </div>
+        {/* Large bid callout for South during bidding */}
+        {state.phase === 'bidding' && bidStatusFor(state, 0) && (
+          <div
+            className={`seat-bid-callout south ${isLatestBid(state, 0) ? 'fresh' : ''} ${bidStatusFor(state, 0) === 'Pass' ? 'pass' : ''}`}
+          >
+            {bidStatusFor(state, 0)}
+          </div>
+        )}
       </div>
 
       <div className="action-dock">
         {state.phase === 'bidding' && humanTurn && (
           <div className="bid-panel">
             {canPass(state) && (
-              <button type="button" className="btn ghost" onClick={() => bid(null)}>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => bid(null)}
+              >
                 Pass
               </button>
             )}
@@ -223,50 +305,12 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
           </div>
         )}
 
-        {(state.phase === 'hand_result' || state.phase === 'game_over') &&
-          state.handResult && (
-            <div className="result-panel">
-              <p className="result-title">
-                {state.phase === 'game_over' ? 'Match over' : 'Hand over'}
-              </p>
-              <p>
-                {state.handResult.made ? 'Bid made' : 'Set!'} · delta Us{' '}
-                {fmtDelta(state.handResult.teamScoreDelta[0])} · Them{' '}
-                {fmtDelta(state.handResult.teamScoreDelta[1])}
-              </p>
-              <p>
-                Taken: Us {state.handResult.teamPointsTaken[0]} · Them{' '}
-                {state.handResult.teamPointsTaken[1]}
-              </p>
-              <div className="result-actions">
-                {state.phase === 'hand_result' ? (
-                  <button
-                    type="button"
-                    className="btn primary"
-                    onClick={continueNextHand}
-                  >
-                    Next hand
-                  </button>
-                ) : (
-                  <button type="button" className="btn primary" onClick={doRematch}>
-                    Rematch
-                  </button>
-                )}
-                <button type="button" className="btn ghost" onClick={backToLobby}>
-                  Lobby
-                </button>
-              </div>
-            </div>
-          )}
-
         <div
           className={`hand-row ${state.phase === 'bidding' || state.phase === 'choose_trump' ? 'hand-preview' : ''}`}
           aria-label="Your hand"
         >
           {hand.map((c) => {
-            const canPlay =
-              state.phase === 'playing' && playable.has(c.id)
-            // Only grey out unplayable cards during play — keep full white contrast while bidding
+            const canPlay = state.phase === 'playing' && playable.has(c.id)
             const dimmed = state.phase === 'playing' && !playable.has(c.id)
             return (
               <CardView
@@ -277,11 +321,34 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               />
             )
           })}
-          {hand.length === 0 && state.phase !== 'lobby' && (
-            <span className="hand-empty">No cards</span>
-          )}
+          {hand.length === 0 &&
+            state.phase !== 'lobby' &&
+            state.phase !== 'hand_result' &&
+            state.phase !== 'game_over' && (
+              <span className="hand-empty">No cards</span>
+            )}
         </div>
+
+        {showContinue && (
+          <div className="continue-row">
+            <button
+              ref={continueRef}
+              type="button"
+              className="btn primary continue-btn"
+              onClick={
+                state.phase === 'game_over' ? doRematch : continueNextHand
+              }
+            >
+              {state.phase === 'game_over' ? 'Rematch' : 'Continue'}
+            </button>
+            <button type="button" className="btn ghost" onClick={backToLobby}>
+              Lobby
+            </button>
+          </div>
+        )}
+
         {!humanTurn &&
+          !showContinue &&
           state.phase !== 'hand_result' &&
           state.phase !== 'game_over' && (
             <p className="waiting">Waiting for robots…</p>
@@ -295,46 +362,49 @@ function SeatSlot({
   label,
   count,
   bidStatus,
+  bidFresh,
   active,
   position,
 }: {
   label: string
   count: number
   bidStatus: string | null
+  bidFresh: boolean
   active: boolean
   position: string
 }) {
   const fan = position === 'north' || position === 'south'
-  // Show every card as a back; cap visual density so 9 cards still fit
   const n = Math.min(count, 9)
 
   return (
     <div className={`seat-slot ${position} ${active ? 'turn' : ''}`}>
       <div className="seat-name">{label}</div>
-      {bidStatus && (
+      <div className="seat-slot-body">
         <div
-          className={`seat-bid ${bidStatus === 'Pass' ? 'pass' : ''} ${bidStatus === '…' ? 'waiting' : ''}`}
+          className={`seat-cards ${fan ? 'fan' : 'stack'} ${position}`}
+          aria-label={`${count} cards`}
         >
-          {bidStatus}
+          {Array.from({ length: n }).map((_, i) => (
+            <div
+              key={i}
+              className="card-back"
+              style={
+                {
+                  zIndex: i,
+                  ['--i' as string]: i,
+                  ['--n' as string]: n,
+                } as CSSProperties
+              }
+            />
+          ))}
         </div>
-      )}
-      <div
-        className={`seat-cards ${fan ? 'fan' : 'stack'} ${position}`}
-        aria-label={`${count} cards`}
-      >
-        {Array.from({ length: n }).map((_, i) => (
+        {bidStatus && (
           <div
-            key={i}
-            className="card-back"
-            style={
-              {
-                zIndex: i,
-                ['--i' as string]: i,
-                ['--n' as string]: n,
-              } as CSSProperties
-            }
-          />
-        ))}
+            className={`seat-bid-callout ${position} ${bidFresh ? 'fresh' : ''} ${bidStatus === 'Pass' ? 'pass' : ''} ${bidStatus === '…' ? 'waiting' : ''}`}
+          >
+            {bidStatus}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -351,6 +421,14 @@ function bidOrder(dealer: Seat): Seat[] {
   return order
 }
 
+function isLatestBid(
+  state: ReturnType<typeof useGameStore.getState>['state'],
+  seat: Seat,
+): boolean {
+  if (state.bids.length === 0) return false
+  return state.bids[state.bids.length - 1].seat === seat
+}
+
 function bidStatusFor(
   state: ReturnType<typeof useGameStore.getState>['state'],
   seat: Seat,
@@ -358,14 +436,18 @@ function bidStatusFor(
   if (
     state.phase !== 'bidding' &&
     state.phase !== 'choose_trump' &&
-    !(state.bids.length && state.phase === 'playing')
+    !(
+      state.bids.length &&
+      (state.phase === 'playing' ||
+        state.phase === 'hand_result' ||
+        state.phase === 'game_over')
+    )
   ) {
     return null
   }
   const entry = state.bids.find((b) => b.seat === seat)
   if (entry) return entry.bid === null ? 'Pass' : String(entry.bid)
   if (state.phase === 'bidding' && state.currentSeat === seat) return '…'
-  if (state.phase === 'bidding') return null
   return null
 }
 

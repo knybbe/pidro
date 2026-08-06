@@ -220,6 +220,31 @@ button {
   z-index: 2;
 }
 
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.delay-select {
+  height: 44px;
+  min-width: 3.4rem;
+  padding: 0 0.4rem;
+  border-radius: 12px;
+  background: #1c2820;
+  border: 1px solid #2a3a2e;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.delay-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .icon-btn {
   width: 44px;
   height: 44px;
@@ -293,6 +318,13 @@ button {
   align-items: center;
   gap: 0.25rem;
   opacity: 0.85;
+  overflow: visible;
+}
+
+.seat-slot.west,
+.seat-slot.east {
+  /* Room for large bid callouts toward the table center */
+  min-width: 4.5rem;
 }
 
 .seat-slot.turn {
@@ -312,36 +344,179 @@ button {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-.seat-bid {
-  font-size: 0.85rem;
+.seat-slot-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Large per-seat bid callouts: W right · N bottom · E left of card fans */
+.seat-bid-callout {
+  position: absolute;
+  z-index: 20;
+  min-width: 2.6rem;
+  min-height: 2.6rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #111111;
+  border: 2px solid var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.seat-bid-callout.pass {
+  font-size: 0.95rem;
   font-weight: 700;
-  min-width: 2rem;
-  text-align: center;
-  padding: 0.12rem 0.45rem;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid var(--accent-dim);
-  color: var(--accent);
-  text-shadow: none;
+  border-color: #6b7c70;
+  color: #3a4a40;
 }
 
-.seat-bid.pass {
-  border-color: #5a6b5e;
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 0.72rem;
-}
-
-.seat-bid.waiting {
-  border-color: #f0c14b88;
-  color: #fff;
+.seat-bid-callout.waiting {
+  font-size: 1.2rem;
+  border-color: #f0c14b;
   animation: pulse-bid 1s ease infinite;
+}
+
+.seat-bid-callout.fresh {
+  animation: bid-pop 0.35s ease;
+}
+
+.seat-bid-callout.west {
+  /* right side of west cards (toward table center) */
+  left: calc(100% + 0.2rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.seat-bid-callout.east {
+  /* left side of east cards (toward table center) */
+  right: calc(100% + 0.2rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.seat-bid-callout.north {
+  /* below north cards */
+  left: 50%;
+  top: calc(100% + 0.15rem);
+  transform: translateX(-50%);
+}
+
+.seat-bid-callout.south {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  margin: 0.25rem auto 0;
+  width: fit-content;
 }
 
 @keyframes pulse-bid {
   50% {
     opacity: 0.55;
   }
+}
+
+@keyframes bid-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.seat-bid-callout.west.fresh {
+  animation: bid-pop-west 0.35s ease;
+}
+
+.seat-bid-callout.east.fresh {
+  animation: bid-pop-east 0.35s ease;
+}
+
+.seat-bid-callout.north.fresh {
+  animation: bid-pop-north 0.35s ease;
+}
+
+@keyframes bid-pop-west {
+  0% {
+    transform: translateY(-50%) scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(-50%) scale(1.08);
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bid-pop-east {
+  0% {
+    transform: translateY(-50%) scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(-50%) scale(1.08);
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bid-pop-north {
+  0% {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateX(-50%) scale(1.08);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.hand-result-line {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.continue-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.continue-btn {
+  flex: 1;
+  min-height: 52px;
+  font-size: 1.1rem;
+}
+
+.continue-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .bid-log {
