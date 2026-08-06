@@ -43,6 +43,8 @@ export type Phase =
   | 'choose_trump'
   | 'discard_refill'
   | 'playing'
+  /** Trick finished; cards stay up until player continues */
+  | 'trick_pause'
   | 'hand_result'
   | 'game_over'
 

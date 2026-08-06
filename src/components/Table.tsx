@@ -1,9 +1,9 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import {
   canPass,
+  groupHand,
   legalBids,
   legalPlays,
-  sortHand,
   suitName,
   suitSymbol,
   type Seat,
@@ -12,7 +12,7 @@ import {
 import { useGameStore, type BidDelaySec } from '../store/gameStore'
 import { CardView } from './CardView'
 
-const SUITS: Suit[] = ['S', 'H', 'C', 'D'] // spades, hearts, clubs, diamonds
+const SUITS: Suit[] = ['S', 'C', 'H', 'D'] // spades, clubs, hearts, diamonds
 const BID_DELAYS: BidDelaySec[] = [1, 2, 3, 4, 5]
 
 export function Table({ onShowRules }: { onShowRules: () => void }) {
@@ -20,8 +20,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   const bid = useGameStore((s) => s.bid)
   const pickTrump = useGameStore((s) => s.pickTrump)
   const play = useGameStore((s) => s.play)
-  const continueNextHand = useGameStore((s) => s.continueNextHand)
-  const doRematch = useGameStore((s) => s.doRematch)
+  const continuePlay = useGameStore((s) => s.continuePlay)
   const backToLobby = useGameStore((s) => s.backToLobby)
   const bidDelaySec = useGameStore((s) => s.bidDelaySec)
   const setBidDelaySec = useGameStore((s) => s.setBidDelaySec)
@@ -34,7 +33,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     (state.phase === 'choose_trump' && state.bidder === humanSeat) ||
     (state.phase === 'playing' && state.currentSeat === humanSeat)
 
-  const hand = sortHand(state.hands[humanSeat], state.trump)
+  const handGroups = groupHand(state.hands[humanSeat], state.trump)
 
   const playable =
     state.phase === 'playing' && humanTurn
@@ -42,23 +41,33 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
       : new Set<string>()
 
   const showContinue =
-    state.phase === 'hand_result' || state.phase === 'game_over'
+    state.phase === 'trick_pause' ||
+    state.phase === 'hand_result' ||
+    state.phase === 'game_over'
+
+  const continueLabel =
+    state.phase === 'game_over'
+      ? 'Rematch'
+      : state.phase === 'hand_result'
+        ? 'Continue'
+        : 'Continue'
 
   // Keep Continue / Rematch focused so Enter / Space advances
   useEffect(() => {
     if (showContinue) {
-      // Defer so the button is in the DOM after paint
       const id = requestAnimationFrame(() => continueRef.current?.focus())
       return () => cancelAnimationFrame(id)
     }
-  }, [showContinue, state.phase, state.handResult])
+  }, [showContinue, state.phase, state.handResult, state.completedTricks.length])
 
   // Prefer the live last trick; fall back to last completed if empty
   const displayTrick =
     state.currentTrick.length > 0
       ? state.currentTrick
       : state.completedTricks.length > 0 &&
-          (state.phase === 'hand_result' || state.phase === 'game_over')
+          (state.phase === 'hand_result' ||
+            state.phase === 'game_over' ||
+            state.phase === 'trick_pause')
         ? state.completedTricks[state.completedTricks.length - 1]
         : state.currentTrick
 
@@ -217,6 +226,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
             )}
             <p className="status-msg">{state.message}</p>
             {(state.phase === 'playing' ||
+              state.phase === 'trick_pause' ||
               state.phase === 'hand_result' ||
               state.phase === 'game_over') && (
               <p className="points-live">
@@ -260,99 +270,106 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
       </div>
 
       <div className="action-dock">
-        {state.phase === 'bidding' && humanTurn && (
-          <div className="bid-panel">
-            {canPass(state) && (
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => bid(null)}
-              >
-                Pass
-              </button>
-            )}
-            <div className="bid-grid">
-              {legalBids(state).map((b) => (
+        <div className="action-slot">
+          {state.phase === 'bidding' && humanTurn && (
+            <div className="bid-panel">
+              {canPass(state) && (
                 <button
-                  key={b}
                   type="button"
-                  className="btn bid-btn"
-                  onClick={() => bid(b)}
+                  className="btn ghost"
+                  onClick={() => bid(null)}
                 >
-                  {b}
+                  Pass
                 </button>
-              ))}
+              )}
+              <div className="bid-grid">
+                {legalBids(state).map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    className="btn bid-btn"
+                    onClick={() => bid(b)}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {state.phase === 'choose_trump' && humanTurn && (
-          <div className="trump-panel">
-            <p>Choose trump</p>
-            <div className="trump-grid">
-              {SUITS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`btn trump-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}`}
-                  onClick={() => pickTrump(s)}
-                >
-                  {suitSymbol(s)}
-                  <span>{suitName(s)}</span>
-                </button>
-              ))}
+          {state.phase === 'choose_trump' && humanTurn && (
+            <div className="trump-panel">
+              <p>Choose trump</p>
+              <div className="trump-grid">
+                {SUITS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`btn trump-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}`}
+                    onClick={() => pickTrump(s)}
+                  >
+                    {suitSymbol(s)}
+                    <span>{suitName(s)}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
+          {!humanTurn && !showContinue && (
+            <p className="waiting">Waiting for robots…</p>
+          )}
+        </div>
+
+        {/* Fixed-height hand tray — always reserved so layout doesn't jump */}
         <div
           className={`hand-row ${state.phase === 'bidding' || state.phase === 'choose_trump' ? 'hand-preview' : ''}`}
           aria-label="Your hand"
         >
-          {hand.map((c) => {
-            const canPlay = state.phase === 'playing' && playable.has(c.id)
-            const dimmed = state.phase === 'playing' && !playable.has(c.id)
-            return (
-              <CardView
-                key={c.id}
-                card={c}
-                disabled={dimmed}
-                onClick={canPlay ? () => play(c.id) : undefined}
-              />
-            )
-          })}
-          {hand.length === 0 &&
-            state.phase !== 'lobby' &&
-            state.phase !== 'hand_result' &&
-            state.phase !== 'game_over' && (
-              <span className="hand-empty">No cards</span>
-            )}
+          {handGroups.map((group, gi) => (
+            <div key={gi} className="hand-suit-group">
+              {group.map((c) => {
+                const canPlay = state.phase === 'playing' && playable.has(c.id)
+                const dimmed = state.phase === 'playing' && !playable.has(c.id)
+                return (
+                  <CardView
+                    key={c.id}
+                    card={c}
+                    disabled={dimmed}
+                    onClick={canPlay ? () => play(c.id) : undefined}
+                  />
+                )
+              })}
+            </div>
+          ))}
         </div>
 
-        {showContinue && (
-          <div className="continue-row">
-            <button
-              ref={continueRef}
-              type="button"
-              className="btn primary continue-btn"
-              onClick={
-                state.phase === 'game_over' ? doRematch : continueNextHand
-              }
-            >
-              {state.phase === 'game_over' ? 'Rematch' : 'Continue'}
-            </button>
-            <button type="button" className="btn ghost" onClick={backToLobby}>
-              Lobby
-            </button>
-          </div>
-        )}
-
-        {!humanTurn &&
-          !showContinue &&
-          state.phase !== 'hand_result' &&
-          state.phase !== 'game_over' && (
-            <p className="waiting">Waiting for robots…</p>
+        {/* Fixed-height continue tray — button or empty space */}
+        <div className="continue-row">
+          {showContinue ? (
+            <>
+              <button
+                ref={continueRef}
+                type="button"
+                className="btn primary continue-btn"
+                onClick={continuePlay}
+              >
+                {continueLabel}
+              </button>
+              {(state.phase === 'hand_result' || state.phase === 'game_over') && (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={backToLobby}
+                >
+                  Lobby
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="continue-placeholder" aria-hidden />
           )}
+        </div>
       </div>
     </div>
   )

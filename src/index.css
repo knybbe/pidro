@@ -506,11 +506,21 @@ button {
   display: flex;
   gap: 0.5rem;
   width: 100%;
+  min-height: 52px;
+  height: 52px;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.continue-placeholder {
+  flex: 1;
+  height: 52px;
 }
 
 .continue-btn {
   flex: 1;
   min-height: 52px;
+  height: 52px;
   font-size: 1.1rem;
 }
 
@@ -765,7 +775,16 @@ button {
   padding: 0.5rem 0.6rem calc(0.65rem + var(--safe-bottom));
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.4rem;
+  /* Stable height so dealing / Continue don't reflow the felt */
+  flex-shrink: 0;
+}
+
+.action-slot {
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .bid-panel,
@@ -840,12 +859,30 @@ button {
 .hand-row {
   display: flex;
   justify-content: center;
+  align-items: flex-end;
   flex-wrap: nowrap;
-  gap: 0.25rem;
+  gap: 0; /* gaps come from suit-group separators */
   overflow-x: auto;
   padding: 0.35rem 0.25rem 0.25rem;
-  min-height: 5.6rem;
+  /* Always reserve a full card tray (9 cards) so dealing doesn't twitch */
+  height: 5.9rem;
+  min-height: 5.9rem;
+  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
+}
+
+.hand-suit-group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  align-items: flex-end;
+}
+
+/* Double space between suit sets (two card gaps ≈ 0.5rem + extra) */
+.hand-suit-group + .hand-suit-group {
+  margin-left: 0.85rem;
+  padding-left: 0.85rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Bidding / trump pick: full-contrast white faces (not dimmed) */

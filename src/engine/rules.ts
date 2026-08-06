@@ -84,13 +84,13 @@ export function sortTrumps(cards: Card[], trump: Suit): Card[] {
   )
 }
 
-/** Suit display order: spades, hearts, clubs, diamonds */
-export const SUIT_ORDER: Suit[] = ['S', 'H', 'C', 'D']
+/** Suit display order: spades, clubs, hearts, diamonds */
+export const SUIT_ORDER: Suit[] = ['S', 'C', 'H', 'D']
 
 const SUIT_ORDER_INDEX: Record<Suit, number> = {
   S: 0,
-  H: 1,
-  C: 2,
+  C: 1,
+  H: 2,
   D: 3,
 }
 
@@ -114,8 +114,8 @@ const RANK_HIGH_TO_LOW: Record<Rank, number> = {
 /**
  * Sort hand for display:
  * - If trump is known: all trumps first (high→low, left pedro in rank), then
- *   remaining suits in ♠ ♥ ♣ ♦ order, each high→low.
- * - If no trump: suits ♠ ♥ ♣ ♦, each high→low.
+ *   remaining suits in ♠ ♣ ♥ ♦ order, each high→low.
+ * - If no trump: suits ♠ ♣ ♥ ♦, each high→low.
  */
 export function sortHand(cards: Card[], trump: Suit | null): Card[] {
   return [...cards].sort((a, b) => {
@@ -129,6 +129,38 @@ export function sortHand(cards: Card[], trump: Suit | null): Card[] {
     if (suitDiff !== 0) return suitDiff
     return RANK_HIGH_TO_LOW[b.rank] - RANK_HIGH_TO_LOW[a.rank]
   })
+}
+
+/** Display group key for a card (trumps share one group when trump is set). */
+export function handGroupKey(card: Card, trump: Suit | null): string {
+  if (trump && isTrump(card, trump)) return `T:${trump}`
+  return card.suit
+}
+
+/**
+ * Sort then split into suit/trump groups for spaced hand layout.
+ * Order: trumps (if any), then ♠ ♣ ♥ ♦.
+ */
+export function groupHand(cards: Card[], trump: Suit | null): Card[][] {
+  const sorted = sortHand(cards, trump)
+  const groups: Card[][] = []
+  let currentKey: string | null = null
+  let bucket: Card[] = []
+  for (const c of sorted) {
+    const key = handGroupKey(c, trump)
+    if (currentKey === null) {
+      currentKey = key
+      bucket = [c]
+    } else if (key === currentKey) {
+      bucket.push(c)
+    } else {
+      groups.push(bucket)
+      currentKey = key
+      bucket = [c]
+    }
+  }
+  if (bucket.length) groups.push(bucket)
+  return groups
 }
 
 export function trumpsInHand(hand: Card[], trump: Suit): Card[] {

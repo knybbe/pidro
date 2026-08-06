@@ -3,6 +3,7 @@ import { makeCard } from './deck'
 import {
   canPass,
   chooseTrump,
+  continueAfterTrick,
   createLobbyState,
   dealHand,
   legalBids,
@@ -67,7 +68,7 @@ describe('rules', () => {
     expect(total).toBe(POINTS_IN_PACK)
   })
 
-  it('sortHand: suits ♠♥♣♦ and high→low within suit', () => {
+  it('sortHand: suits ♠♣♥♦ and high→low within suit', () => {
     const hand = [
       makeCard('C', '2'),
       makeCard('S', '3'),
@@ -77,7 +78,7 @@ describe('rules', () => {
       makeCard('H', '5'),
     ]
     const sorted = sortHand(hand, null).map((c) => c.id)
-    expect(sorted).toEqual(['S-K', 'S-3', 'H-A', 'H-5', 'C-2', 'D-10'])
+    expect(sorted).toEqual(['S-K', 'S-3', 'C-2', 'H-A', 'H-5', 'D-10'])
   })
 })
 
@@ -190,9 +191,17 @@ describe('play', () => {
     expect(s.phase).toBe('playing')
     expect(s.trump).toBe('S')
 
-    // Play until hand ends (safety cap)
+    // Play until hand ends (safety cap); auto-continue after each trick pause
     let guard = 0
-    while (s.phase === 'playing' && guard++ < 200) {
+    while (
+      (s.phase === 'playing' || s.phase === 'trick_pause') &&
+      guard++ < 400
+    ) {
+      if (s.phase === 'trick_pause') {
+        expect(s.currentTrick.length).toBeGreaterThan(0)
+        s = continueAfterTrick(s)
+        continue
+      }
       const seat = s.currentSeat!
       const legal = legalPlays(s, seat)
       expect(legal.length).toBeGreaterThan(0)
@@ -207,6 +216,28 @@ describe('play', () => {
     expect(taken).toBeLessThanOrEqual(14)
   })
 
+  it('pauses after each completed trick until continue', () => {
+    let s = startMatch(createLobbyState(11), { seed: 11 })
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+    s = chooseTrump(s, 1, 'H')
+    let guard = 0
+    while (s.phase === 'playing' && guard++ < 40) {
+      const seat = s.currentSeat!
+      s = playCard(s, seat, legalPlays(s, seat)[0].id)
+    }
+    if (s.phase === 'trick_pause') {
+      const n = s.currentTrick.length
+      expect(n).toBeGreaterThan(0)
+      s = continueAfterTrick(s)
+      expect(s.phase).toBe('playing')
+      expect(s.currentTrick).toEqual([])
+      expect(s.currentSeat).not.toBeNull()
+    }
+  })
+
   it('nextHand rotates dealer', () => {
     let s = startMatch(createLobbyState(7), { seed: 7 })
     const d0 = s.dealer
@@ -217,7 +248,14 @@ describe('play', () => {
     s = placeBid(s, 0, null)
     s = chooseTrump(s, 1, 'H')
     let guard = 0
-    while (s.phase === 'playing' && guard++ < 200) {
+    while (
+      (s.phase === 'playing' || s.phase === 'trick_pause') &&
+      guard++ < 400
+    ) {
+      if (s.phase === 'trick_pause') {
+        s = continueAfterTrick(s)
+        continue
+      }
       const seat = s.currentSeat!
       s = playCard(s, seat, legalPlays(s, seat)[0].id)
     }

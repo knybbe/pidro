@@ -419,16 +419,36 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     })
   }
 
+  // Pause so every completed trick stays visible until Continue
   return {
     ...state,
     hands,
-    currentTrick: [],
+    currentTrick,
     completedTricks,
     pointsTaken,
     activeSeats,
     trickLeader: nextLeader,
-    currentSeat: nextLeader,
+    currentSeat: null,
+    phase: 'trick_pause',
     message: `${state.seats[winner].name} wins the trick`,
+  }
+}
+
+/** After Continue on a finished trick: clear table and start next lead. */
+export function continueAfterTrick(state: GameState): GameState {
+  if (state.phase !== 'trick_pause') {
+    throw new Error('Not waiting on a trick')
+  }
+  const leader = state.trickLeader
+  if (leader === null) {
+    throw new Error('No next leader')
+  }
+  return {
+    ...state,
+    phase: 'playing',
+    currentTrick: [],
+    currentSeat: leader,
+    message: `${state.seats[leader].name} leads`,
   }
 }
 

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { botAct } from '../ai'
 import {
   chooseTrump,
+  continueAfterTrick,
   createLobbyState,
   nextHand,
   placeBid,
@@ -39,7 +40,8 @@ interface GameStore {
   bid: (bid: number | null) => void
   pickTrump: (suit: Suit) => void
   play: (cardId: string) => void
-  continueNextHand: () => void
+  /** Advance after trick_pause, hand_result, or game_over */
+  continuePlay: () => void
   doRematch: () => void
   backToLobby: () => void
   /** Advance bots while it is a bot seat's turn */
@@ -100,11 +102,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     applyHuman(get, set, (s) => playCard(s, s.currentSeat as Seat, cardId))
   },
 
-  continueNextHand: () => {
+  continuePlay: () => {
     clearBot(get, set)
-    const state = nextHand(get().state)
-    set({ state })
-    queueMicrotask(() => get().kickBots())
+    const { state } = get()
+    if (state.phase === 'trick_pause') {
+      set({ state: continueAfterTrick(state) })
+      queueMicrotask(() => get().kickBots())
+      return
+    }
+    if (state.phase === 'hand_result') {
+      set({ state: nextHand(state) })
+      queueMicrotask(() => get().kickBots())
+      return
+    }
+    if (state.phase === 'game_over') {
+      set({ state: rematch(state) })
+      queueMicrotask(() => get().kickBots())
+    }
   },
 
   doRematch: () => {
