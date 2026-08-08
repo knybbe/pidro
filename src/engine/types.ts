@@ -83,6 +83,11 @@ export interface GameState {
   hands: [Card[], Card[], Card[], Card[]]
   /** Cards still in the stock (undealt / remaining after deal) */
   stock: Card[]
+  /**
+   * Per-seat dump piles (face-up in UI): non-trumps discarded after trump is
+   * named, plus tricks collected after Continue (added to the winner).
+   */
+  dumpPiles: [Card[], Card[], Card[], Card[]]
   bids: BidEntry[]
   highBid: number | null
   bidder: Seat | null

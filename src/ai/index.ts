@@ -129,6 +129,40 @@ function chooseTrump(
   return bestSuitStrength(state.hands[seat]).suit
 }
 
+function isPedro(card: Card, trump: Suit): boolean {
+  return isRightPedro(card, trump) || isLeftPedro(card, trump)
+}
+
+/** Lowest-strength card that is safe to lose (never throw a pedro if anything else exists). */
+function bestDump(sortedLowToHigh: Card[], trump: Suit): Card {
+  // Prefer 0-point non-pedros, then lowest point non-pedro, pedro only if sole option
+  const nonPedro = sortedLowToHigh.filter((c) => !isPedro(c, trump))
+  if (nonPedro.length) {
+    const zero = nonPedro.find((c) => cardPoints(c, trump) === 0)
+    if (zero) return zero
+    // Must lose a point card — smallest points, then lowest strength
+    return [...nonPedro].sort((a, b) => {
+      const pd = cardPoints(a, trump) - cardPoints(b, trump)
+      if (pd !== 0) return pd
+      return trumpStrength(a, trump) - trumpStrength(b, trump)
+    })[0]
+  }
+  // Only pedros left
+  return sortedLowToHigh[0]
+}
+
+/** Cheapest card that currently beats `beating` (sorted low→high). */
+function cheapestWinner(
+  sortedLowToHigh: Card[],
+  beating: Card,
+  trump: Suit,
+): Card | null {
+  const winners = sortedLowToHigh.filter(
+    (c) => trumpStrength(c, trump) > trumpStrength(beating, trump),
+  )
+  return winners[0] ?? null
+}
+
 function choosePlay(
   state: GameState,
   seat: Seat,
@@ -137,31 +171,22 @@ function choosePlay(
   const legal = legalPlays(state, seat)
   if (legal.length === 0) throw new Error('No legal plays')
   const trump = state.trump!
+  // Low → high trump strength
   const sorted = [...legal].sort(
     (a, b) => trumpStrength(a, trump) - trumpStrength(b, trump),
   )
 
-  if (diff === 'easy') {
-    // Prefer dumping low non-points
-    const nonPoints = sorted.filter((c) => cardPoints(c, trump) === 0)
-    const pool = nonPoints.length ? nonPoints : sorted
-    return pool[Math.floor(Math.random() * pool.length)].id
-  }
+  if (sorted.length === 1) return sorted[0].id
 
   const trick = state.currentTrick
   const partner = ((seat + 2) % 4) as Seat
 
+  // —— Lead ——
   if (trick.length === 0) {
-    // Lead: high if we have A/K, else low non-point, else lowest
-    const ace = sorted.find((c) => c.rank === 'A')
-    if (ace) return ace.id
-    const king = sorted.find((c) => c.rank === 'K')
-    if (king && diff === 'hard') return king.id
-    const lowNon = sorted.find((c) => cardPoints(c, trump) === 0)
-    return (lowNon ?? sorted[0]).id
+    return chooseLead(sorted, trump, diff).id
   }
 
-  // Find current winning play
+  // Current winner on the table
   let winning = trick[0]
   for (const p of trick) {
     if (trumpStrength(p.card, trump) > trumpStrength(winning.card, trump)) {
@@ -171,48 +196,84 @@ function choosePlay(
   const partnerWinning = winning.seat === partner
   const pointsInTrick = trick.reduce(
     (sum, p) =>
-      sum +
-      (p.card.rank === '2' ? 0 : cardPoints(p.card, trump)),
+      sum + (p.card.rank === '2' ? 0 : cardPoints(p.card, trump)),
     0,
   )
-  const hasPedro =
-    trick.some((p) => isRightPedro(p.card, trump) || isLeftPedro(p.card, trump))
+  const pedroInTrick = trick.some((p) => isPedro(p.card, trump))
+  const win = cheapestWinner(sorted, winning.card, trump)
 
-  if (partnerWinning && !hasPedro && pointsInTrick <= 1) {
-    // Dump lowest non-point (medium/hard already left easy path above)
-    const dump = sorted.find((c) => cardPoints(c, trump) === 0) ?? sorted[0]
-    return dump.id
+  const played = new Set(trick.map((p) => p.seat))
+  const othersLeft = state.activeSeats.filter(
+    (s) => !played.has(s) && s !== seat,
+  )
+  const lastToPlay = othersLeft.length === 0
+
+  // —— Partner already winning: never overtrump; dump junk ——
+  // (Hard used to always "needWin" and climb over partner.)
+  if (partnerWinning) {
+    return bestDump(sorted, trump).id
   }
 
-  // Try to win if points or pedro at stake, or partner not winning
-  const needWin = !partnerWinning || hasPedro || pointsInTrick >= 2 || diff === 'hard'
-  if (needWin) {
-    const winners = sorted.filter(
-      (c) => trumpStrength(c, trump) > trumpStrength(winning.card, trump),
-    )
-    if (winners.length) {
-      // Win as cheaply as possible
-      if (hasPedro || pointsInTrick >= 5) {
-        // ensure win, maybe high if last to play
-        return winners[0].id
-      }
-      return winners[0].id
+  // —— We can take the trick ——
+  if (win) {
+    // Never spend a pedro to win a worthless trick — dump instead
+    if (isPedro(win, trump) && pointsInTrick === 0 && !pedroInTrick) {
+      const nonPedroWin = sorted.find(
+        (c) =>
+          !isPedro(c, trump) &&
+          trumpStrength(c, trump) > trumpStrength(winning.card, trump),
+      )
+      if (nonPedroWin) return nonPedroWin.id
+      return bestDump(sorted, trump).id
     }
+
+    // Prefer a non-pedro winner when the cheapest winner is a pedro
+    if (isPedro(win, trump)) {
+      const nonPedroWin = sorted.find(
+        (c) =>
+          !isPedro(c, trump) &&
+          trumpStrength(c, trump) > trumpStrength(winning.card, trump),
+      )
+      if (nonPedroWin) return nonPedroWin.id
+    }
+
+    // Easy: take when points/pedro at stake or last; otherwise often dump
+    if (diff === 'easy') {
+      if (pedroInTrick || pointsInTrick >= 2 || lastToPlay) return win.id
+      if (!isPedro(win, trump) && Math.random() < 0.55) return win.id
+      return bestDump(sorted, trump).id
+    }
+
+    // Medium / hard: take valuable tricks, free wins, or when last to play
+    const valuable = pedroInTrick || pointsInTrick >= 1
+    const cheapNonPedro = !isPedro(win, trump) && cardPoints(win, trump) <= 1
+    if (valuable || lastToPlay || cheapNonPedro || diff === 'hard') {
+      return win.id
+    }
+    return bestDump(sorted, trump).id
   }
 
-  // Cannot win or don't need to — dump lowest, avoid giving points if possible
-  const dump = sorted.find((c) => cardPoints(c, trump) === 0) ?? sorted[0]
-  // If we must lose a point card, lose smallest
-  if (cardPoints(dump, trump) > 0 && sorted.length > 1) {
-    const pts = sorted.filter((c) => cardPoints(c, trump) > 0)
-    pts.sort((a, b) => cardPoints(a, trump) - cardPoints(b, trump))
-    // Prefer not dumping pedro
-    const nonPedro = pts.find(
-      (c) => !isRightPedro(c, trump) && !isLeftPedro(c, trump),
-    )
-    return (nonPedro ?? dump).id
+  // —— Cannot beat current winner: never gift a pedro or high points ——
+  return bestDump(sorted, trump).id
+}
+
+function chooseLead(
+  sortedLowToHigh: Card[],
+  trump: Suit,
+  diff: Difficulty,
+): Card {
+  // Easy: lead low non-point
+  if (diff === 'easy') {
+    return bestDump(sortedLowToHigh, trump)
   }
-  return dump.id
+  const ace = sortedLowToHigh.find((c) => c.rank === 'A')
+  if (ace) return ace
+  if (diff === 'hard') {
+    const king = sortedLowToHigh.find((c) => c.rank === 'K')
+    if (king) return king
+  }
+  // Low non-point, never lead pedro if anything else exists
+  return bestDump(sortedLowToHigh, trump)
 }
 
 /** Expose for tests */

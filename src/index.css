@@ -36,8 +36,10 @@ html,
 body,
 #root {
   margin: 0;
-  min-height: 100%;
-  min-height: 100dvh;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 body {
@@ -45,6 +47,7 @@ body {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+  overflow: hidden;
 }
 
 button {
@@ -56,12 +59,19 @@ button {
 }
 
 .app {
-  min-height: 100dvh;
-  min-height: 100vh;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
+  background: #0a120e;
+  /* Let table stretch to full viewport */
+  width: 100%;
+  max-width: none;
 }
 
 /* —— Lobby —— */
@@ -204,10 +214,63 @@ button {
 
 /* —— Table —— */
 .table-screen {
-  flex: 1;
+  flex: 1 1 0%;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  overflow: hidden;
+  /* Full app area so the square felt can grow with the viewport */
+  align-self: stretch;
+}
+
+/* Host fills all remaining space under the top bar / above info bar */
+.felt-host {
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #0a120e;
+  overflow: hidden;
+  /* Size container for CSS fallback square sizing */
+  container-type: size;
+  container-name: felt-host;
+}
+
+.table-screen.can-continue {
+  cursor: pointer;
+}
+
+/* Status / messages sit under the green felt — keep compact for more felt height */
+.info-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.75rem 0.35rem;
+  background: #0a120e;
+  border-top: 1px solid #1a2820;
+}
+
+.info-bar-text {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  max-width: 42rem;
+}
+
+.info-lobby {
+  min-height: 2rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
 }
 
 .top-bar {
@@ -215,9 +278,10 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.5rem 0.65rem;
+  padding: 0.3rem 0.55rem;
   background: rgba(0, 0, 0, 0.35);
   z-index: 2;
+  flex-shrink: 0;
 }
 
 .top-bar-right {
@@ -227,9 +291,9 @@ button {
 }
 
 .delay-select {
-  height: 44px;
-  min-width: 3.4rem;
-  padding: 0 0.4rem;
+  height: 40px;
+  min-width: 3.2rem;
+  padding: 0 0.35rem;
   border-radius: 12px;
   background: #1c2820;
   border: 1px solid #2a3a2e;
@@ -246,13 +310,14 @@ button {
 }
 
 .icon-btn {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
   background: #1c2820;
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
 }
 
 .scores {
@@ -293,38 +358,138 @@ button {
 }
 
 .felt {
-  flex: 1;
+  /*
+   * Largest square that fits the host.
+   * JS sets exact px (and --felt-side); CSS fallback uses container size units.
+   */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* cqi/cqb = host inline/block size → min keeps it square and maxed */
+  width: var(--felt-side, min(100cqi, 100cqb));
+  height: var(--felt-side, min(100cqi, 100cqb));
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 0.5rem 0.5rem 0.25rem;
+  padding: 0.35rem 0.45rem 0.3rem;
   background:
     radial-gradient(ellipse at center, #227a4a 0%, var(--felt) 55%, var(--felt-edge) 100%);
-  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-.felt-mid {
-  display: grid;
-  grid-template-columns: 1fr minmax(0, 2.2fr) 1fr;
-  align-items: center;
-  gap: 0.25rem;
-  flex: 1;
+/* Fixed corner reservation for bid log (no layout shift) */
+.bid-log-slot {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.3rem;
+  z-index: 15;
+  width: min(48%, 11.75rem);
+  /* Tall enough for title + 4 rows + hint without scrolling */
   min-height: 0;
+  pointer-events: none;
 }
 
-.seat-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  opacity: 0.85;
+.bid-log-slot .bid-log {
+  pointer-events: auto;
+  position: relative;
+  top: auto;
+  left: auto;
+  width: 100%;
+  max-height: none;
+  margin: 0;
   overflow: visible;
 }
 
-.seat-slot.west,
-.seat-slot.east {
-  /* Room for large bid callouts toward the table center */
-  min-width: 4.5rem;
+/* Main table geometry — no overlapping zones */
+.table-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    '. north .'
+    'west center east'
+    'south south south';
+  gap: 0.15rem 0.25rem;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0.2rem 0.35rem 0.15rem;
+  box-sizing: border-box;
+}
+
+.grid-north {
+  grid-area: north;
+  max-width: 100%;
+  z-index: 2;
+  justify-self: center;
+}
+
+.grid-west {
+  grid-area: west;
+  justify-self: start;
+  align-self: center;
+  z-index: 2;
+  padding-left: 0.15rem;
+}
+
+.grid-east {
+  grid-area: east;
+  justify-self: end;
+  align-self: center;
+  z-index: 2;
+  padding-right: 0.15rem;
+}
+
+.grid-center {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.grid-south {
+  grid-area: south;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  z-index: 3;
+  flex-shrink: 0;
+  /* Fixed footprint so play/hand changes don't resize the south row */
+  justify-content: flex-end;
+}
+
+.trump-pill {
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+/*
+ * Seat = deck block (label 10px above backs) + played card.
+ * West/East: flex row, top-aligned so played card tops with deck (not label).
+ */
+.seat-slot {
+  display: flex;
+  opacity: 0.95;
+  overflow: visible;
 }
 
 .seat-slot.turn {
@@ -333,25 +498,120 @@ button {
 
 .seat-slot.turn .seat-name {
   color: var(--accent);
-  font-weight: 600;
+}
+
+.seat-slot.north {
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.seat-slot.west {
+  flex-direction: row;
+  align-items: flex-start; /* played card top = deck top */
+  gap: 16px;
+}
+
+.seat-slot.east {
+  flex-direction: row; /* DOM is already played then deck */
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* Label + deck only — name is never next to the played card */
+.seat-deck {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .seat-name {
-  font-size: 0.72rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   text-align: center;
-  max-width: 7rem;
   line-height: 1.2;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  margin: 0 0 10px; /* always 10px above deck */
+  padding: 0;
+  width: 100%;
 }
 
-.seat-slot-body {
+/* Offset played card down by label height + 10px so it lines up with deck backs */
+.seat-slot.west .played-next-to,
+.seat-slot.east .played-next-to {
+  margin-top: calc(0.95rem * 1.2 + 10px);
+}
+
+/*
+ * Robot deck fans: max 50% card overlap (step = 50% of card size).
+ * --n is set inline from card count (9 in bidding, remaining in play).
+ */
+.seat-cards {
+  --seat-cw: 2.8rem;
+  --seat-ch: 3.85rem;
+  /* Horizontal fan step: 50% of card width → max 50% overlap */
+  --seat-step-x: calc(var(--seat-cw) * 0.5);
+  /* Vertical fan (rotated W/E): visual height ≈ card width after 90° */
+  --seat-step-y: calc(var(--seat-cw) * 0.5);
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-shrink: 0;
 }
 
-/* Large per-seat bid callouts: W right · N bottom · E left of card fans */
+.seat-cards.fan.north {
+  width: calc(var(--seat-cw) + max(var(--n) - 1, 0) * var(--seat-step-x));
+  height: var(--seat-ch);
+  min-width: var(--seat-cw);
+}
+
+.seat-cards.fan.north .card-back,
+.seat-cards.fan.north .seat-card-wrap {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(
+    calc(-50% + (var(--i) - (var(--n) - 1) / 2) * var(--seat-step-x))
+  );
+}
+
+.seat-cards.fan.west,
+.seat-cards.fan.east {
+  /* After 90° rotate: visual size is ch × cw */
+  width: var(--seat-ch);
+  height: calc(var(--seat-cw) + max(var(--n) - 1, 0) * var(--seat-step-y));
+  min-height: var(--seat-cw);
+}
+
+.seat-cards.fan.west .card-back,
+.seat-cards.fan.east .card-back,
+.seat-cards.fan.west .seat-card-wrap,
+.seat-cards.fan.east .seat-card-wrap {
+  position: absolute;
+  left: 50%;
+  /* Center-based stack so rotated bounds fit height formula */
+  top: calc(var(--seat-cw) / 2 + var(--i) * var(--seat-step-y));
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+}
+
+/* Face-up leftovers (no trumps left) match back size */
+.seat-cards .seat-card-wrap .card,
+.seat-cards .seat-card-wrap button.card {
+  width: var(--seat-cw);
+  height: var(--seat-ch);
+  pointer-events: none;
+}
+
+.seat-cards .seat-card-wrap .card .card-rank {
+  font-size: 0.85rem;
+}
+
+.seat-cards .seat-card-wrap .card .card-suit-center {
+  font-size: 1.15rem;
+}
+
+/* Large per-seat bid callouts: W right · N side · E left of card fans */
 .seat-bid-callout {
   position: absolute;
   z-index: 20;
@@ -390,24 +650,26 @@ button {
 }
 
 .seat-bid-callout.west {
-  /* right side of west cards (toward table center) */
-  left: calc(100% + 0.2rem);
+  left: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
 }
 
 .seat-bid-callout.east {
-  /* left side of east cards (toward table center) */
-  right: calc(100% + 0.2rem);
+  right: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
 }
 
 .seat-bid-callout.north {
-  /* below north cards */
+  /* below north deck faces */
   left: 50%;
-  top: calc(100% + 0.15rem);
+  top: calc(100% + 8px);
   transform: translateX(-50%);
+}
+
+.seat-deck .seat-bid-callout {
+  position: absolute;
 }
 
 .seat-bid-callout.south {
@@ -415,7 +677,7 @@ button {
   left: auto;
   top: auto;
   transform: none;
-  margin: 0.25rem auto 0;
+  margin: 0;
   width: fit-content;
 }
 
@@ -506,22 +768,22 @@ button {
   display: flex;
   gap: 0.5rem;
   width: 100%;
-  min-height: 52px;
-  height: 52px;
+  min-height: 44px;
+  height: 44px;
   align-items: stretch;
   flex-shrink: 0;
 }
 
 .continue-placeholder {
   flex: 1;
-  height: 52px;
+  height: 44px;
 }
 
 .continue-btn {
   flex: 1;
-  min-height: 52px;
-  height: 52px;
-  font-size: 1.1rem;
+  min-height: 44px;
+  height: 44px;
+  font-size: 1.05rem;
 }
 
 .continue-btn:focus-visible {
@@ -530,21 +792,28 @@ button {
 }
 
 .bid-log {
-  width: min(92%, 220px);
-  background: rgba(0, 0, 0, 0.45);
+  width: 100%;
+  background: rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  padding: 0.45rem 0.55rem 0.5rem;
-  margin-bottom: 0.25rem;
+  padding: 0.35rem 0.45rem 0.4rem;
+  margin-bottom: 0;
+  box-sizing: border-box;
+}
+
+.bid-log.bid-log-corner {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  overflow: visible;
 }
 
 .bid-log-title {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.55);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.2rem;
   text-align: center;
+  line-height: 1.2;
 }
 
 .bid-log-list {
@@ -553,17 +822,18 @@ button {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.08rem;
 }
 
 .bid-log-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
-  padding: 0.15rem 0.25rem;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.2rem;
   border-radius: 6px;
+  line-height: 1.25;
 }
 
 .bid-log-item.turn {
@@ -595,8 +865,9 @@ button {
 }
 
 .bid-log-hint {
-  margin: 0.35rem 0 0;
-  font-size: 0.68rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
   text-align: center;
   color: rgba(255, 255, 255, 0.55);
 }
@@ -606,47 +877,14 @@ button {
   font-weight: 600;
 }
 
-.seat-cards {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.6rem;
-}
 
-/* Horizontal fan for north (and future south) */
-.seat-cards.fan {
-  width: min(52vw, 11.5rem);
-  height: 2.7rem;
-}
-
-.seat-cards.fan .card-back {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  /* Spread cards evenly across the fan width */
-  transform: translateX(calc(-50% + (var(--i) - (var(--n) - 1) / 2) * 0.72rem));
-}
-
-/* Vertical stack for west / east */
-.seat-cards.stack {
-  width: 2.1rem;
-  height: min(28vw, 7.5rem);
-}
-
-.seat-cards.stack.west .card-back,
-.seat-cards.stack.east .card-back {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(calc(-50% + (var(--i) - (var(--n) - 1) / 2) * 0.55rem));
-}
 
 .card-back {
   position: relative;
-  width: 1.85rem;
-  height: 2.55rem;
-  border-radius: 5px;
+  /* ~50% larger than original mini backs */
+  width: 2.8rem;
+  height: 3.85rem;
+  border-radius: 6px;
   background:
     linear-gradient(145deg, #1a4a9e 0%, #12306e 55%, #0c224f 100%);
   border: 1.5px solid #e8eefc;
@@ -674,28 +912,16 @@ button {
   pointer-events: none;
 }
 
-.center-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 0;
-}
 
-.meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  justify-content: center;
-}
 
 .trump-badge,
 .bid-badge {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.55);
   border-radius: 999px;
-  padding: 0.2rem 0.55rem;
+  padding: 0.18rem 0.55rem;
+  white-space: nowrap;
 }
 
 .trump-badge.red {
@@ -708,152 +934,245 @@ button {
   border: 1px solid #ccc;
 }
 
-.trick-area {
+/* Compact 2×2 dump piles — small faces, tight vertical stack */
+.dump-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 0.25rem 0.55rem;
+  width: 6.8rem;
+  flex-shrink: 0;
+  align-items: start;
+  justify-items: center;
+}
+
+.dump-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  width: 2.4rem;
+}
+
+.dump-n {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.dump-e {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.dump-w {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.dump-s {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.dump-fan {
   position: relative;
-  width: min(42vw, 160px);
-  height: min(42vw, 140px);
+  width: 2.1rem;
+  height: 2.85rem;
+  flex-shrink: 0;
+}
+
+.dump-empty {
+  width: 2.1rem;
+  height: 2.85rem;
+  border-radius: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  box-sizing: border-box;
+}
+
+.dump-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateY(calc(var(--i, 0) * 3px));
+  flex-shrink: 0;
+}
+
+.dump-card .card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  width: 2.1rem;
+  height: 2.85rem;
+}
+
+.dump-card .card .card-rank {
+  font-size: 0.65rem;
+  top: 0.08rem;
+  left: 0.1rem;
+}
+
+.dump-card .card .card-suit-center {
+  font-size: 1.1rem;
+}
+
+.dump-extra {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1;
+}
+
+/* Played-card slot always reserved (empty or full) so decks stay put */
+.played-next-to {
+  flex-shrink: 0;
+  z-index: 6;
+  width: 3.4rem;
+  height: 4.8rem;
   display: grid;
   place-items: center;
 }
 
-.trick-empty {
-  color: rgba(255, 255, 255, 0.25);
-  font-size: 0.85rem;
+.played-next-to .card {
+  width: 3.4rem;
+  height: 4.8rem;
 }
 
-.trick-card {
-  position: absolute;
-  transition: transform 0.2s ease;
+/* North played slot: same width as card, fixed height */
+.played-next-to.north {
+  width: 3.4rem;
+  height: 4.8rem;
 }
 
-.trick-card.seat-0 {
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+/*
+ * South play: always reserve one card so the table never jumps when you play.
+ * Gap below matches N/W/E (seat-slot gap ≈ 14px) between played card and deck.
+ */
+.south-play-slot {
+  width: 3.4rem;
+  height: 4.8rem;
+  min-height: 4.8rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0 0 14px;
+  box-sizing: border-box;
 }
-.trick-card.seat-1 {
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+
+.south-play-slot .played-next-to.south {
+  margin: 0;
 }
-.trick-card.seat-2 {
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+
+/* Bid row collapses when empty so it doesn't push play away from You */
+.south-bid-slot {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex-shrink: 0;
+  margin: 0 0 6px;
 }
-.trick-card.seat-3 {
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+
+.south-bid-slot:empty {
+  display: none;
+  margin: 0;
+}
+
+/* You always 10px above hand cards (same as robot labels above decks) */
+.grid-south .you-label {
+  margin: 0 0 10px;
+  padding: 0;
+  line-height: 1.15;
+  flex-shrink: 0;
+}
+
+/* Compact bid / trump row above You · South — single line, no dock growth */
+.south-bid-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 0 0.25rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.south-bid-row::-webkit-scrollbar {
+  display: none;
+}
+
+.south-bid-chip {
+  flex: 0 0 auto;
+  /* ~50% larger than previous bid chips */
+  min-width: 2.55rem;
+  height: 2.8rem;
+  padding: 0 0.45rem;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111;
+  border: 1px solid #d0d4dc;
+  font-weight: 700;
+  font-size: 1.2rem;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.south-bid-chip.pass {
+  min-width: 3.6rem;
+  font-size: 1.05rem;
+  background: #1c2820;
+  color: var(--ink);
+  border-color: #3a4a40;
+}
+
+.south-bid-chip:active {
+  transform: scale(0.96);
+}
+
+.trump-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.hand-row.hand-trump-pick {
+  position: relative;
+  z-index: 5;
+}
+
+.hand-row.hand-trump-pick .card {
+  cursor: pointer;
+  outline: 2px solid rgba(240, 193, 75, 0.55);
+  outline-offset: 1px;
+  pointer-events: auto;
 }
 
 .status-msg {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   text-align: center;
-  max-width: 16rem;
+  max-width: 18rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .points-live {
   margin: 0;
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .you-label {
   text-align: center;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
-  padding-bottom: 0.15rem;
-}
-
-/* —— Action dock (thumb zone) —— */
-.action-dock {
-  background: linear-gradient(180deg, #101a14, #0a100c);
-  border-top: 1px solid #243328;
-  padding: 0.5rem 0.6rem calc(0.65rem + var(--safe-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  /* Stable height so dealing / Continue don't reflow the felt */
-  flex-shrink: 0;
-}
-
-.action-slot {
-  min-height: 3.25rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.bid-panel,
-.trump-panel,
-.result-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.bid-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.35rem;
-}
-
-.bid-btn {
-  min-height: 44px;
-  padding: 0.4rem;
   font-size: 1rem;
-}
-
-.trump-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.35rem;
-}
-
-.trump-btn {
-  flex-direction: column;
-  min-height: 56px;
-  font-size: 1.35rem;
-  padding: 0.35rem;
-  background: #ffffff;
-  border: 1px solid #d0d4dc;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-}
-
-.trump-btn span {
-  font-size: 0.65rem;
   font-weight: 600;
-}
-
-.trump-btn.red {
-  color: #d32f2f;
-}
-
-.trump-btn.black {
-  color: #111111;
-}
-
-.result-title {
-  font-weight: 700;
-  margin: 0;
-}
-
-.result-panel p {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-.result-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.result-actions .btn {
-  flex: 1;
+  color: rgba(255, 255, 255, 0.85);
+  padding-bottom: 0;
 }
 
 .hand-row {
@@ -871,6 +1190,40 @@ button {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Hand sits on the green felt — fixed height so playing cards never resizes south */
+.hand-row.on-felt {
+  width: 100%;
+  margin-top: 0;
+  padding: 0.15rem 0.2rem 0.1rem;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  height: 5.4rem;
+  min-height: 5.4rem;
+  max-height: 5.4rem;
+}
+
+.felt-status {
+  min-height: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.status-msg,
+.points-live,
+.hand-result-line {
+  min-height: 1.05em;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hand-suit-group {
   display: flex;
   flex-wrap: nowrap;
@@ -885,20 +1238,42 @@ button {
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Bidding / trump pick: full-contrast white faces (not dimmed) */
-.hand-row.hand-preview .card {
+/*
+ * Hand cards: fixed identical size for trump and non-trump (button or div).
+ * Non-playable / non-trump cards dim so they never look larger or louder.
+ */
+.hand-row.on-felt .card,
+.hand-row.on-felt button.card {
+  width: 3.4rem;
+  height: 4.8rem;
+  min-width: 3.4rem;
+  max-width: 3.4rem;
+  min-height: 4.8rem;
+  max-height: 4.8rem;
+  flex: 0 0 3.4rem;
   background: #ffffff;
-  opacity: 1;
-  filter: none;
-  box-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transform: none;
+  box-sizing: border-box;
+  font-size: 16px;
+  padding: 0;
+  margin: 0;
+  border-width: 1px;
 }
 
-.hand-row.hand-preview {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Dim non-playable cards (typically non-trumps during play) */
+.hand-row.on-felt .card.disabled,
+.hand-row.on-felt button.card.disabled {
+  opacity: 0.5;
+  filter: grayscale(0.25);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Playable trumps stay full contrast */
+.hand-row.on-felt .card:not(.disabled),
+.hand-row.on-felt button.card:not(.disabled) {
+  opacity: 1;
+  filter: none;
 }
 
 .hand-empty {
@@ -910,12 +1285,14 @@ button {
 .waiting {
   text-align: center;
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   color: var(--muted);
 }
 
 /* —— Cards (faces: high-contrast white) —— */
-.card {
+/* Use rem sizes so button font inheritance can't shrink pips */
+.card,
+button.card {
   width: 3.4rem;
   height: 4.8rem;
   border-radius: 8px;
@@ -925,46 +1302,87 @@ button {
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 0.3rem 0.35rem;
+  display: block;
+  padding: 0;
+  margin: 0;
   flex: 0 0 auto;
   position: relative;
+  overflow: hidden;
+  font-size: 16px; /* stable base for any em children */
+  line-height: 1;
+  text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.card-sm {
+.card-sm,
+button.card.card-sm {
   width: 2.55rem;
   height: 3.55rem;
-  font-size: 0.88rem;
-  padding: 0.22rem 0.26rem;
 }
 
-.card.red {
+.card.red,
+button.card.red {
   color: #d32f2f;
 }
 
-.card.black {
+.card.black,
+button.card.black {
   color: #111111;
 }
 
+/* Rank top-left */
 .card-rank {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.28rem;
+  z-index: 3;
   font-weight: 800;
-  font-size: 1.05em;
+  font-size: 0.95rem;
   line-height: 1;
   letter-spacing: -0.02em;
+  pointer-events: none;
 }
 
-.card-suit {
-  font-size: 1.25em;
-  line-height: 1.05;
-  margin-top: 0.05rem;
+/* Large suit pip only in the middle of the card */
+.card-suit-center {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  font-size: 2rem;
+  line-height: 1;
+  pointer-events: none;
+  box-sizing: border-box;
 }
 
+.card-sm .card-rank {
+  top: 0.12rem;
+  left: 0.16rem;
+  font-size: 0.78rem;
+}
+
+.card-sm .card-suit-center {
+  font-size: 1.55rem;
+}
+
+/* Outline only — no translate (avoids layout jump) */
 .card.selected {
   outline: 2px solid var(--accent);
-  transform: translateY(-6px);
+  outline-offset: 1px;
+}
+
+.hand-row.hand-trump-pick .card:hover,
+.hand-row.hand-trump-pick .card.selected:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  /* keep cards in place */
+  transform: none;
 }
 
 .card:not(.disabled):not(.face-down) {
@@ -1085,12 +1503,39 @@ button {
   }
 
   .card-back {
-    width: 2.15rem;
-    height: 3rem;
+    width: 3rem;
+    height: 4.15rem;
   }
 
-  .seat-cards.fan .card-back {
-    transform: translateX(calc(-50% + (var(--i) - (var(--n) - 1) / 2) * 0.85rem));
+  .seat-cards {
+    --seat-cw: 3rem;
+    --seat-ch: 4.15rem;
+  }
+
+  .hand-row.on-felt .card,
+  .hand-row.on-felt button.card {
+    width: 3.9rem;
+    height: 5.5rem;
+    min-width: 3.9rem;
+    max-width: 3.9rem;
+    min-height: 5.5rem;
+    max-height: 5.5rem;
+    flex: 0 0 3.9rem;
+  }
+
+  .hand-row.on-felt {
+    height: 6.1rem;
+    min-height: 6.1rem;
+    max-height: 6.1rem;
+  }
+
+  .played-next-to,
+  .played-next-to.north,
+  .played-next-to .card,
+  .south-play-slot {
+    width: 3.9rem;
+    height: 5.5rem;
+    min-height: 5.5rem;
   }
 
   .hand-row {
@@ -1108,10 +1553,4 @@ button {
   }
 }
 
-@media (min-width: 900px) {
-  .table-screen {
-    max-width: 720px;
-    margin: 0 auto;
-    width: 100%;
-  }
-}
+/* No max-width on the table — felt square uses full viewport room */

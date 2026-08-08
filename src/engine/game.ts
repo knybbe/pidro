@@ -27,6 +27,34 @@ function emptyHands(): [Card[], Card[], Card[], Card[]] {
   return [[], [], [], []]
 }
 
+function emptyDumps(): [Card[], Card[], Card[], Card[]] {
+  return [[], [], [], []]
+}
+
+/** Grammar for human vs bot labels in status text */
+function actorPhrase(name: string, verb: 'wins' | 'won' | 'bids' | 'passes' | 'leads' | 'plays'): string {
+  if (name === 'You') {
+    const map: Record<typeof verb, string> = {
+      wins: 'You win',
+      won: 'You won',
+      bids: 'You bid',
+      passes: 'You pass',
+      leads: 'You lead',
+      plays: 'You play',
+    }
+    return map[verb]
+  }
+  const map: Record<typeof verb, string> = {
+    wins: `${name} wins`,
+    won: `${name} won`,
+    bids: `${name} bids`,
+    passes: `${name} passes`,
+    leads: `${name} leads`,
+    plays: `${name} plays`,
+  }
+  return map[verb]
+}
+
 export function defaultSeats(
   difficulties: [Difficulty, Difficulty, Difficulty] = [
     'medium',
@@ -54,6 +82,7 @@ export function createLobbyState(
     dealer: 0,
     hands: emptyHands(),
     stock: [],
+    dumpPiles: emptyDumps(),
     bids: [],
     highBid: null,
     bidder: null,
@@ -109,6 +138,7 @@ export function dealHand(state: GameState, dealer: Seat): GameState {
     dealer,
     hands,
     stock,
+    dumpPiles: emptyDumps(),
     bids: [],
     highBid: null,
     bidder: null,
@@ -187,7 +217,7 @@ export function placeBid(
       bidder: finalBidder,
       phase: 'choose_trump',
       currentSeat: finalBidder,
-      message: `${state.seats[finalBidder].name} won bid at ${finalBid} — choose trump`,
+      message: `${actorPhrase(state.seats[finalBidder].name, 'won')} the bid at ${finalBid} — choose trump`,
     }
   }
 
@@ -199,22 +229,26 @@ export function placeBid(
     currentSeat: nextSeat(seat),
     message:
       bid === null
-        ? `${state.seats[seat].name} passes`
-        : `${state.seats[seat].name} bids ${bid}`,
+        ? actorPhrase(state.seats[seat].name, 'passes')
+        : `${actorPhrase(state.seats[seat].name, 'bids')} ${bid}`,
   }
 }
 
 export function chooseTrump(state: GameState, seat: Seat, trump: Suit): GameState {
-  if (state.phase !== 'choose_trump' || state.bidder !== seat) {
-    throw new Error('Not allowed to choose trump')
+  if (state.phase !== 'choose_trump') {
+    throw new Error(`Not allowed to choose trump (phase=${state.phase})`)
   }
-  let next: GameState = {
+  if (state.bidder !== seat) {
+    throw new Error(
+      `Not allowed to choose trump (bidder=${state.bidder}, seat=${seat})`,
+    )
+  }
+  const next: GameState = {
     ...state,
     trump,
     message: `Trump is ${trump}`,
   }
-  next = performDiscardAndRefill(next)
-  return next
+  return performDiscardAndRefill(next)
 }
 
 /**
@@ -232,18 +266,22 @@ export function performDiscardAndRefill(state: GameState): GameState {
     Card[],
   ]
   let stock = [...state.stock]
+  const dumpPiles = emptyDumps()
 
-  // 1. Each player keeps only trumps; if >6, drop non-scoring trumps
+  // 1. Each player keeps only trumps; non-trumps go to that player's dump pile
   for (let s = 0; s < 4; s++) {
+    const nonTrumps = hands[s].filter((c) => !isTrump(c, trump))
+    dumpPiles[s].push(...nonTrumps)
     let trumps = trumpsInHand(hands[s], trump)
     if (trumps.length > HAND_SIZE_AFTER_DISCARD) {
       const scoring = trumps.filter((c) => isScoringTrump(c, trump))
       const nonScoring = trumps
         .filter((c) => !isScoringTrump(c, trump))
         .sort((a, b) => trumpStrength(a, trump) - trumpStrength(b, trump))
-      const keepNon = nonScoring.slice(
-        -(HAND_SIZE_AFTER_DISCARD - scoring.length),
-      )
+      const dropCount = trumps.length - HAND_SIZE_AFTER_DISCARD
+      const dropped = nonScoring.slice(0, dropCount)
+      dumpPiles[s].push(...dropped)
+      const keepNon = nonScoring.slice(dropCount)
       trumps = [...scoring, ...keepNon]
     }
     hands[s] = trumps
@@ -262,7 +300,9 @@ export function performDiscardAndRefill(state: GameState): GameState {
   const dealer = state.dealer
   hands[dealer] = [...hands[dealer], ...stock]
   stock = []
-  hands[dealer] = discardDownToSix(hands[dealer], trump)
+  const dealerResult = discardDownToSix(hands[dealer], trump)
+  hands[dealer] = dealerResult.keep
+  dumpPiles[dealer].push(...dealerResult.discarded)
 
   // Low holder: who holds trump 2 after discard
   let lowHolder: Seat | null = null
@@ -284,24 +324,59 @@ export function performDiscardAndRefill(state: GameState): GameState {
   }
 
   const bidder = state.bidder!
+  // Bidder normally leads, but if they have no trumps after discard/refill,
+  // pass the lead to the next active seat clockwise from the bidder.
+  let leader: Seat | null = bidder
+  if (!activeSeats.includes(bidder)) {
+    leader = nextActiveFrom(bidder, activeSeats)
+  }
+  if (leader === null && activeSeats.length > 0) {
+    leader = activeSeats[0]
+  }
+
+  // No one has trumps — hand is over before play starts (extremely rare)
+  if (leader === null || activeSeats.length === 0) {
+    return finishHand({
+      ...state,
+      hands,
+      stock,
+      dumpPiles,
+      lowHolder,
+      pointsTaken,
+      activeSeats: [],
+      phase: 'playing',
+      currentSeat: null,
+      trickLeader: null,
+      currentTrick: [],
+      completedTricks: [],
+      message: 'No trumps in play',
+    })
+  }
+
   return {
     ...state,
     hands,
     stock,
+    dumpPiles,
     lowHolder,
     pointsTaken,
     activeSeats,
     phase: 'playing',
-    currentSeat: bidder,
-    trickLeader: bidder,
+    currentSeat: leader,
+    trickLeader: leader,
     currentTrick: [],
     completedTricks: [],
-    message: `Play — ${state.seats[bidder].name} leads`,
+    message: `Play — ${actorPhrase(state.seats[leader].name, 'leads')}`,
   }
 }
 
-function discardDownToSix(hand: Card[], trump: Suit): Card[] {
-  if (hand.length <= HAND_SIZE_AFTER_DISCARD) return hand
+function discardDownToSix(
+  hand: Card[],
+  trump: Suit,
+): { keep: Card[]; discarded: Card[] } {
+  if (hand.length <= HAND_SIZE_AFTER_DISCARD) {
+    return { keep: hand, discarded: [] }
+  }
   // Keep all scoring trumps, then highest non-scoring trumps, then anything
   const scoring = hand.filter((c) => isScoringTrump(c, trump))
   const nonScoringTrumps = hand
@@ -313,20 +388,46 @@ function discardDownToSix(hand: Card[], trump: Suit): Card[] {
     if (keep.length >= HAND_SIZE_AFTER_DISCARD) break
     keep.push(c)
   }
-  // Prefer not keeping non-trumps, but if still short (shouldn't happen often):
   for (const c of nonTrumps) {
     if (keep.length >= HAND_SIZE_AFTER_DISCARD) break
     keep.push(c)
   }
-  // If still over (too many scoring - max 6 scoring), drop lowest non-scoring first already handled
-  // If scoring alone > 6 impossible (only 6 scoring cards exist)
-  return keep.slice(0, HAND_SIZE_AFTER_DISCARD)
+  const finalKeep = keep.slice(0, HAND_SIZE_AFTER_DISCARD)
+  const keepIds = new Set(finalKeep.map((c) => c.id))
+  const discarded = hand.filter((c) => !keepIds.has(c.id))
+  return { keep: finalKeep, discarded }
 }
 
 export function legalPlays(state: GameState, seat: Seat): Card[] {
   if (state.phase !== 'playing' || state.trump === null) return []
-  if (!state.activeSeats.includes(seat)) return []
-  return trumpsInHand(state.hands[seat], state.trump)
+  // Allow the current actor even if activeSeats got out of sync (recovery).
+  if (!state.activeSeats.includes(seat) && state.currentSeat !== seat) return []
+  const trumps = trumpsInHand(state.hands[seat], state.trump)
+  if (trumps.length === 0) return []
+
+  // Pidro: only trumps are played. A singleton is always the only legal card.
+  // Defenders (opponents of the bidder) with exactly one trump must play it
+  // on the opening trick — they cannot "save" it for later.
+  if (
+    isOpeningTrick(state) &&
+    isOpponentOfBidder(state, seat) &&
+    trumps.length === 1
+  ) {
+    return trumps
+  }
+
+  return trumps
+}
+
+/** True while the first trick of the hand is still being played. */
+function isOpeningTrick(state: GameState): boolean {
+  return state.completedTricks.length === 0
+}
+
+/** Seat is on the defending side (not bidder, not bidder's partner). */
+function isOpponentOfBidder(state: GameState, seat: Seat): boolean {
+  if (state.bidder === null) return false
+  return teamOf(seat) !== teamOf(state.bidder)
 }
 
 export function playCard(state: GameState, seat: Seat, cardId: string): GameState {
@@ -348,9 +449,16 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
   const currentTrick: TrickPlay[] = [...state.currentTrick, { seat, card }]
 
   // Who still needs to play this trick?
-  const seatsInTrick = seatsForTrick(state, state.trickLeader!)
+  // Use updated hands so anyone who is now out of trumps is skipped.
+  const seatsInTrick = seatsForTrick(
+    { ...state, hands, currentTrick },
+    state.trickLeader ?? seat,
+  )
   const playedSeats = new Set(currentTrick.map((p) => p.seat))
-  const remaining = seatsInTrick.filter((s) => !playedSeats.has(s))
+  const remaining = seatsInTrick.filter(
+    (s) =>
+      !playedSeats.has(s) && trumpsInHand(hands[s], trump).length > 0,
+  )
 
   if (remaining.length > 0) {
     return {
@@ -358,7 +466,7 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
       hands,
       currentTrick,
       currentSeat: remaining[0],
-      message: `${state.seats[seat].name} plays ${card.rank}${card.suit}`,
+      message: `${actorPhrase(state.seats[seat].name, 'plays')} ${card.rank}${card.suit}`,
     }
   }
 
@@ -430,7 +538,7 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     trickLeader: nextLeader,
     currentSeat: null,
     phase: 'trick_pause',
-    message: `${state.seats[winner].name} wins the trick`,
+    message: `${actorPhrase(state.seats[winner].name, 'wins')} the trick`,
   }
 }
 
@@ -439,42 +547,74 @@ export function continueAfterTrick(state: GameState): GameState {
   if (state.phase !== 'trick_pause') {
     throw new Error('Not waiting on a trick')
   }
-  const leader = state.trickLeader
+  const trump = state.trump!
+  let leader = state.trickLeader
   if (leader === null) {
     throw new Error('No next leader')
   }
+  // Collect finished trick onto the winner's face-up dump pile
+  const winner = trickWinner(state.currentTrick, trump)
+  const dumpPiles = state.dumpPiles.map((p) => [...p]) as [
+    Card[],
+    Card[],
+    Card[],
+    Card[],
+  ]
+  for (const p of state.currentTrick) {
+    dumpPiles[winner].push(p.card)
+  }
+
+  // Ensure leader still has trumps; otherwise pass lead clockwise among active
+  const active = state.activeSeats.filter(
+    (s) => trumpsInHand(state.hands[s], trump).length > 0,
+  )
+  if (!active.includes(leader)) {
+    leader = nextActiveFrom(leader, active)
+  }
+  if (leader === null) {
+    throw new Error('No active leader after trick')
+  }
+
   return {
     ...state,
     phase: 'playing',
+    dumpPiles,
     currentTrick: [],
     currentSeat: leader,
-    message: `${state.seats[leader].name} leads`,
+    trickLeader: leader,
+    activeSeats: active,
+    message: actorPhrase(state.seats[leader].name, 'leads'),
   }
 }
 
+/**
+ * Clockwise order of seats that belong in this trick, starting at leader.
+ * Include anyone who already played, is marked active, or still holds trumps.
+ * (Mid-trick, a seat may have just spent their last trump — they stay via currentTrick.)
+ */
 function seatsForTrick(state: GameState, leader: Seat): Seat[] {
-  // Players with trumps at start of trick, in order from leader
-  // Use who still had trumps when trick started — approximate: activeSeats ordered from leader
-  // Also include anyone who is playing (active)
+  const trump = state.trump
+  const inTrick = new Set<Seat>()
+
+  for (const p of state.currentTrick) inTrick.add(p.seat)
+  for (const s of state.activeSeats) inTrick.add(s)
+
+  if (trump) {
+    for (let i = 0; i < 4; i++) {
+      const s = i as Seat
+      if (trumpsInHand(state.hands[s], trump).length > 0) inTrick.add(s)
+    }
+  }
+
+  // Leader always heads the order when present
+  inTrick.add(leader)
+
   const order: Seat[] = []
   let s = leader
   for (let i = 0; i < 4; i++) {
-    if (state.activeSeats.includes(s) || s === leader) {
-      // At trick start, leader is always included if they led (they had a trump)
-      if (state.activeSeats.includes(s)) order.push(s)
-    }
+    if (inTrick.has(s)) order.push(s)
     s = nextSeat(s)
   }
-  // Leader might have just been active; ensure leader is first
-  if (!order.includes(leader)) {
-    // Leader played last trump already? shouldn't start trick
-    return order
-  }
-  // Rebuild from leader among activeSeats as of trick start
-  // When we're mid-trick, activeSeats still has everyone who started with trumps this trick
-  // Actually after someone plays last trump mid-trick they're still in the trick
-  // Simplest: order = clockwise from leader among those who had trumps when trick began
-  // We store that implicitly: seats that either already played or still have trumps or are in currentTrick
   return order
 }
 

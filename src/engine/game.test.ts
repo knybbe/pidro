@@ -21,10 +21,12 @@ import {
   leftPedroSuit,
   POINTS_IN_PACK,
   sortHand,
+  trumpsInHand,
   trumpStrength,
 } from './rules'
 import { matchWinner, scoreHand } from './score'
-import type { Suit } from './types'
+import type { Seat, Suit } from './types'
+import { teamOf } from './types'
 
 describe('rules', () => {
   it('left pedro is opposite same-color 5', () => {
@@ -179,6 +181,40 @@ describe('play', () => {
     expect(winner).toBe(2)
   })
 
+  it('defender with a singleton trump must play it on the opening trick', () => {
+    let s = startMatch(createLobbyState(42), { seed: 42 })
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+    expect(s.bidder).toBe(1)
+    s = chooseTrump(s, 1, 'S')
+    expect(s.phase).toBe('playing')
+    expect(s.trump).toBe('S')
+
+    // Force a defending seat (0, same team as 2) to hold exactly one trump
+    const def: Seat = 0
+    expect(teamOf(def)).not.toBe(teamOf(s.bidder!))
+    const keepTrump = makeCard('S', '8')
+    const hands = s.hands.map((h) => [...h]) as typeof s.hands
+    hands[def] = [keepTrump, makeCard('H', '9'), makeCard('D', '9')]
+    s = {
+      ...s,
+      hands,
+      activeSeats: ([0, 1, 2, 3] as Seat[]).filter(
+        (seat) => trumpsInHand(hands[seat], 'S').length > 0,
+      ),
+      currentTrick: [],
+      completedTricks: [],
+      currentSeat: def,
+      trickLeader: s.bidder,
+    }
+
+    const legal = legalPlays(s, def)
+    expect(legal).toHaveLength(1)
+    expect(legal[0].id).toBe(keepTrump.id)
+  })
+
   it('full hand advances to hand_result or continues', () => {
     let s = startMatch(createLobbyState(99), { seed: 99 })
     // Bid high and play out with scripted bots simplified: force bid + trump + play all
@@ -214,6 +250,24 @@ describe('play', () => {
       s.handResult!.teamPointsTaken[0] + s.handResult!.teamPointsTaken[1]
     expect(taken).toBeGreaterThanOrEqual(0)
     expect(taken).toBeLessThanOrEqual(14)
+  })
+
+  it('human bidder can choose trump by suit', () => {
+    let s = startMatch(createLobbyState(3), { seed: 3 })
+    // Force seat 0 (dealer) to win: others pass, dealer forced or bids
+    // seats bid order left of dealer: if dealer=0, order 1,2,3,0
+    s = placeBid(s, 1, null)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, 6)
+    expect(s.phase).toBe('choose_trump')
+    expect(s.bidder).toBe(0)
+    const suit = s.hands[0][0].suit
+    s = chooseTrump(s, 0, suit)
+    expect(s.phase).toBe('playing')
+    expect(s.trump).toBe(suit)
+    expect(s.dumpPiles).toBeDefined()
+    expect(s.dumpPiles.length).toBe(4)
   })
 
   it('pauses after each completed trick until continue', () => {

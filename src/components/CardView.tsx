@@ -26,26 +26,38 @@ export function CardView({
 
   const color = suitColorClass(card.suit)
   const className = `card ${color} ${small ? 'card-sm' : ''} ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`
+  const pip = suitSymbol(card.suit)
 
-  if (onClick) {
+  // Rank top-left; large suit pip only in the center (no small corner suit)
+  const face = (
+    <>
+      <span className="card-rank">{card.rank}</span>
+      <span className="card-suit-center" aria-hidden>
+        {pip}
+      </span>
+    </>
+  )
+
+  if (onClick && !disabled) {
     return (
       <button
         type="button"
         className={className}
-        onClick={disabled ? undefined : onClick}
-        disabled={disabled}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onClick()
+        }}
         aria-label={`${card.rank} of ${card.suit}`}
       >
-        <span className="card-rank">{card.rank}</span>
-        <span className="card-suit">{suitSymbol(card.suit)}</span>
+        {face}
       </button>
     )
   }
 
   return (
     <div className={className} aria-label={`${card.rank} of ${card.suit}`}>
-      <span className="card-rank">{card.rank}</span>
-      <span className="card-suit">{suitSymbol(card.suit)}</span>
+      {face}
     </div>
   )
 }

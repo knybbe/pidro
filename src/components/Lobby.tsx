@@ -8,7 +8,7 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
   const start = useGameStore((s) => s.start)
   const [west, setWest] = useState<Difficulty>('medium')
   const [north, setNorth] = useState<Difficulty>('medium')
-  const [east, setEast] = useState<Difficulty>('easy')
+  const [east, setEast] = useState<Difficulty>('medium')
 
   return (
     <div className="lobby">
