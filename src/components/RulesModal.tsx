@@ -40,14 +40,24 @@ export function RulesModal({ open, onClose }: Props) {
             Keep trumps only; hands are filled to 6 cards. The dealer takes the
             rest of the pack and discards down to 6.
           </p>
+          <h3>Modes</h3>
+          <p>
+            <strong>Classic</strong> — 9 cards, bid, name trump, discard
+            non-trumps, refill from stock to 6 (dealer robs the rest).
+          </p>
+          <p>
+            <strong>Kokkola</strong> — same 9-card deal and bidding; four more
+            cards are dealt after bidding but stay face-down until trump is
+            named. Then dump non-trumps (no stock refill).
+          </p>
           <h3>Play</h3>
           <p>
             <strong>Only trumps are played.</strong> Highest trump wins the
             trick. When you run out of trumps you sit out; leftover cards turn
             face-up when play would next reach you. The last player with trumps
-            still plays them out. Yellow dots mark cards taken in the refill
-            after trump is named. The Two’s point goes to whoever held it after
-            the discard.
+            still plays them out. Yellow dots on your hand mark cards taken in
+            the Classic refill after trump is named. The Two’s point goes to
+            whoever held it after the discard.
           </p>
           <h3>Scoring</h3>
           <p>

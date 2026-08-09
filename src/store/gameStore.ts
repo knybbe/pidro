@@ -11,6 +11,7 @@ import {
   rematch,
   startMatch,
   type Difficulty,
+  type GameMode,
   type GameState,
   type Seat,
   type Suit,
@@ -39,7 +40,10 @@ interface GameStore {
   /** Seconds to wait before each robot bid (0–3). Default 1. */
   bidDelaySec: BidDelaySec
   setBidDelaySec: (sec: BidDelaySec) => void
-  start: (difficulties: [Difficulty, Difficulty, Difficulty]) => void
+  start: (
+    difficulties: [Difficulty, Difficulty, Difficulty],
+    gameMode?: GameMode,
+  ) => void
   bid: (bid: number | null) => void
   pickTrump: (suit: Suit) => void
   play: (cardId: string) => void
@@ -78,9 +82,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  start: (difficulties) => {
+  start: (difficulties, gameMode = 'classic') => {
     clearBot(get, set)
-    const state = startMatch(createLobbyState(), { difficulties })
+    const state = startMatch(createLobbyState(undefined, undefined, gameMode), {
+      difficulties,
+      gameMode,
+    })
     set({ state })
     queueMicrotask(() => get().kickBots())
   },

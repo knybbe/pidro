@@ -376,3 +376,37 @@ describe('deal', () => {
     expect(s.stock.length).toBe(16)
   })
 })
+
+describe('Kokkola mode', () => {
+  it('deals +4 after bidding then chooses trump without stock refill', () => {
+    let s = startMatch(createLobbyState(21, undefined, 'kokkola'), {
+      seed: 21,
+      gameMode: 'kokkola',
+    })
+    expect(s.gameMode).toBe('kokkola')
+    expect(s.hands.every((h) => h.length === 9)).toBe(true)
+    expect(s.stock.length).toBe(16)
+
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+
+    expect(s.phase).toBe('choose_trump')
+    expect(s.hands.every((h) => h.length === 13)).toBe(true)
+    expect(s.stock.length).toBe(0)
+
+    s = chooseTrump(s, 1, 'H')
+    expect(s.phase).toBe('playing')
+    expect(s.trump).toBe('H')
+    // No purchase refill in Kokkola
+    expect(s.purchasedIds).toEqual([])
+    // Everyone has at most 6 (trumps only)
+    for (const h of s.hands) {
+      expect(h.length).toBeLessThanOrEqual(6)
+    }
+    // Dumps received non-trumps
+    const dumpTotal = s.dumpPiles.reduce((n, p) => n + p.length, 0)
+    expect(dumpTotal).toBeGreaterThan(0)
+  })
+})

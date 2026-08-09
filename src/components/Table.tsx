@@ -58,7 +58,17 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     (state.phase === 'choose_trump' && state.bidder === humanSeat) ||
     (state.phase === 'playing' && state.currentSeat === humanSeat)
 
-  const handGroups = groupHand(state.hands[humanSeat], state.trump)
+  /**
+   * Visible hand only. Kokkola deals +4 after bidding into the engine hand,
+   * but those stay hidden until trump is named (never show 13).
+   * Original 9 are always the first cards; extras are appended after.
+   */
+  const visibleHumanHand =
+    state.phase === 'bidding' || state.phase === 'choose_trump'
+      ? state.hands[humanSeat].slice(0, 9)
+      : state.hands[humanSeat]
+
+  const handGroups = groupHand(visibleHumanHand, state.trump)
   const purchasedSet = new Set(state.purchasedIds)
   const choosingTrump =
     state.phase === 'choose_trump' && state.bidder === humanSeat
@@ -66,7 +76,8 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   // Cards playable now, or after continue (trick_pause → lead/play)
   const playableIds = (() => {
     if (choosingTrump) {
-      return new Set(state.hands[humanSeat].map((c) => c.id))
+      // Trump only from the original 9 (Kokkola extras still hidden)
+      return new Set(visibleHumanHand.map((c) => c.id))
     }
     if (state.phase === 'playing' && humanTurn) {
       return new Set(legalPlays(state, humanSeat).map((c) => c.id))
@@ -147,6 +158,8 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   // Largest square that fits the host (fills the shorter side completely)
   const feltHostRef = useRef<HTMLDivElement>(null)
   const [feltSide, setFeltSide] = useState(0)
+  /** Design reference side (px). UI scales smoothly with the green felt. */
+  const FELT_REF = 720
   useLayoutEffect(() => {
     const el = feltHostRef.current
     if (!el) return
@@ -170,6 +183,11 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
       window.removeEventListener('resize', measure)
     }
   }, [])
+
+  const uiScale =
+    feltSide > 0
+      ? Math.max(0.52, Math.min(1.2, feltSide / FELT_REF))
+      : 1
 
   /** All cards this seat has played this hand (stay on table, stacked). */
   const playedCardsBySeat = (seat: Seat): Card[] => {
@@ -266,6 +284,16 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   width: feltSide,
                   height: feltSide,
                   ['--felt-side' as string]: `${feltSide}px`,
+                  ['--ui-scale' as string]: String(uiScale),
+                  // Primary card sizes (played / seat / hand / dump)
+                  ['--play-cw' as string]: `${(3.4 * uiScale).toFixed(3)}rem`,
+                  ['--play-ch' as string]: `${(4.8 * uiScale).toFixed(3)}rem`,
+                  ['--seat-cw' as string]: `${(2.4 * uiScale).toFixed(3)}rem`,
+                  ['--seat-ch' as string]: `${(3.35 * uiScale).toFixed(3)}rem`,
+                  ['--hand-cw' as string]: `${(2.75 * uiScale).toFixed(3)}rem`,
+                  ['--hand-ch' as string]: `${(3.85 * uiScale).toFixed(3)}rem`,
+                  ['--dump-cw' as string]: `${(1.85 * uiScale).toFixed(3)}rem`,
+                  ['--dump-ch' as string]: `${(2.55 * uiScale).toFixed(3)}rem`,
                 } as CSSProperties)
               : undefined
           }
@@ -410,7 +438,6 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 position="north"
                 playedCards={playedCardsBySeat(2)}
                 coldRevealed={state.coldRevealed[2]}
-                purchasedIds={state.purchasedIds}
               />
             </div>
 
@@ -426,7 +453,6 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 position="west"
                 playedCards={playedCardsBySeat(1)}
                 coldRevealed={state.coldRevealed[1]}
-                purchasedIds={state.purchasedIds}
               />
             </div>
 
@@ -540,11 +566,27 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   )}
                 </div>
               ) : (
-                <div className="dump-grid" aria-label="Discarded cards">
-                  <DumpPile cards={state.dumpPiles[2]} className="dump-n" />
-                  <DumpPile cards={state.dumpPiles[3]} className="dump-e" />
-                  <DumpPile cards={state.dumpPiles[1]} className="dump-w" />
-                  <DumpPile cards={state.dumpPiles[0]} className="dump-s" />
+                <div className="dump-diamond" aria-label="Discarded cards">
+                  <DumpPile
+                    cards={state.dumpPiles[2]}
+                    className="dump-n"
+                    seatLabel="N"
+                  />
+                  <DumpPile
+                    cards={state.dumpPiles[1]}
+                    className="dump-w"
+                    seatLabel="W"
+                  />
+                  <DumpPile
+                    cards={state.dumpPiles[3]}
+                    className="dump-e"
+                    seatLabel="E"
+                  />
+                  <DumpPile
+                    cards={state.dumpPiles[0]}
+                    className="dump-s"
+                    seatLabel="You"
+                  />
                 </div>
               )}
             </div>
@@ -561,25 +603,42 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 position="east"
                 playedCards={playedCardsBySeat(3)}
                 coldRevealed={state.coldRevealed[3]}
-                purchasedIds={state.purchasedIds}
               />
             </div>
 
             <div className="grid-south">
-              <div
-                className="south-play-slot"
-                aria-hidden={playedCardsBySeat(0).length === 0}
-              >
-                <PlayedStack
-                  cards={playedCardsBySeat(0)}
-                  position="south"
-                />
+              {/* Fixed play fan (always reserved) */}
+              <div className="south-play-gutter">
+                <div
+                  className="south-play-slot"
+                  aria-hidden={playedCardsBySeat(0).length === 0}
+                >
+                  <PlayedStack
+                    cards={playedCardsBySeat(0)}
+                    position="south"
+                  />
+                </div>
               </div>
 
-              {/* Bid chips / status — directly above You (10px) */}
-              <div className="south-bid-slot">
+              {/* Fixed bid strip (always reserved height — never absolute) */}
+              <div
+                className="south-bid-slot"
+                aria-hidden={
+                  !(
+                    (state.phase === 'bidding' && humanTurn) ||
+                    (state.phase === 'bidding' &&
+                      bidStatusFor(state, 0) &&
+                      bidStatusFor(state, 0) !== '…') ||
+                    choosingTrump
+                  )
+                }
+              >
                 {state.phase === 'bidding' && humanTurn ? (
-                  <div className="south-bid-row" role="group" aria-label="Your bid">
+                  <div
+                    className="south-bid-row"
+                    role="group"
+                    aria-label="Your bid"
+                  >
                     {canPass(state) && (
                       <button
                         type="button"
@@ -613,7 +672,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 ) : null}
               </div>
 
-              {/* You + hand = south “deck” */}
+              {/* You + hand = south “deck” (label 10px above cards like robots) */}
               <div className="you-label">You</div>
 
               <div
@@ -680,41 +739,98 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   )
 }
 
+/**
+ * Dump pile layout: diamond-friendly fan.
+ * ≤3: single column (50% vertical overlap).
+ * 4+: rows of 2, then 3, then 2 with 50% H/V overlap so ranks stay readable.
+ */
+function dumpLayout(n: number): { col: number; row: number }[] {
+  if (n <= 0) return []
+  if (n <= 3) {
+    return Array.from({ length: n }, (_, i) => ({ col: 0, row: i }))
+  }
+  // Rows: 2 + 3 + 2 (max 7 shown)
+  const rows = [2, 3, 2]
+  const pos: { col: number; row: number }[] = []
+  let left = n
+  let r = 0
+  for (const width of rows) {
+    if (left <= 0) break
+    const take = Math.min(width, left)
+    // Center shorter rows under the middle of a 3-wide row
+    const offset = (3 - take) / 2
+    for (let c = 0; c < take; c++) {
+      pos.push({ col: offset + c, row: r })
+    }
+    left -= take
+    r++
+  }
+  return pos
+}
+
 function DumpPile({
   cards,
   className,
+  seatLabel,
 }: {
   cards: Card[]
   className: string
+  seatLabel: string
 }) {
-  // Cap visual stack so center piles stay compact
-  const shown = cards.slice(0, 5)
+  // Cap visual cards so diamond stays compact
+  const maxShown = 7
+  const shown = cards.slice(0, maxShown)
   const extra = cards.length - shown.length
+  const layout = dumpLayout(shown.length)
+  const maxRow =
+    layout.length === 0 ? 0 : layout.reduce((m, p) => Math.max(m, p.row), 0)
+  const maxCol =
+    layout.length === 0 ? 0 : layout.reduce((m, p) => Math.max(m, p.col), 0)
+  // Unitless strings — never append "px" to custom props used in calc()
+  const cols = shown.length <= 3 ? 1 : Math.max(1, Math.ceil(maxCol + 1))
+  const rows = Math.max(1, maxRow + 1)
+
   return (
     <div
       className={`dump-pile ${className}`}
-      aria-label={`${cards.length} discarded cards`}
-      title={cards.length > 0 ? `${cards.length} cards` : undefined}
+      aria-label={`${seatLabel}: ${cards.length} discarded cards`}
+      title={
+        cards.length > 0
+          ? `${seatLabel} · ${cards.length} cards`
+          : `${seatLabel} dump`
+      }
     >
-      <div className="dump-fan">
+      <span className="dump-seat-tag">{seatLabel}</span>
+      <div
+        className={`dump-fan ${shown.length <= 3 ? 'dump-col' : 'dump-rows'}`}
+        style={
+          {
+            ['--dump-cols' as string]: String(cols),
+            ['--dump-rows' as string]: String(rows),
+          } as CSSProperties
+        }
+      >
         {cards.length === 0 ? (
           <div className="dump-empty" />
         ) : (
-          shown.map((c, i) => (
-            <div
-              key={c.id}
-              className="dump-card"
-              style={
-                {
-                  zIndex: i,
-                  ['--i' as string]: i,
-                  ['--n' as string]: shown.length,
-                } as CSSProperties
-              }
-            >
-              <CardView card={c} small />
-            </div>
-          ))
+          shown.map((c, i) => {
+            const p = layout[i] ?? { col: 0, row: i }
+            return (
+              <div
+                key={c.id}
+                className="dump-card"
+                style={
+                  {
+                    zIndex: i + 1,
+                    ['--dc' as string]: String(p.col),
+                    ['--dr' as string]: String(p.row),
+                  } as CSSProperties
+                }
+              >
+                <CardView card={c} small />
+              </div>
+            )
+          })
         )}
       </div>
       {extra > 0 && <span className="dump-extra">+{extra}</span>}
@@ -778,7 +894,6 @@ function SeatSlot({
   position,
   playedCards,
   coldRevealed,
-  purchasedIds,
 }: {
   label: string
   hand: Card[]
@@ -791,12 +906,12 @@ function SeatSlot({
   playedCards: Card[]
   /** Face-up leftovers when play order would have reached this cold seat */
   coldRevealed: boolean
-  purchasedIds: string[]
 }) {
-  // Bidding / trump pick: always 9 face-down. Play: remaining hand.
+  // Bidding / trump pick: always 9 face-down (Kokkola +4 stay hidden until trump).
+  // After discard: at most 6. Never show 13.
   // Leftover non-trumps turn face-up when coldRevealed (their would-be turn).
   const biddingLike = phase === 'bidding' || phase === 'choose_trump'
-  const count = biddingLike ? Math.max(hand.length, 9) : hand.length
+  const count = biddingLike ? 9 : hand.length
   const cold =
     coldRevealed &&
     !biddingLike &&
@@ -804,11 +919,10 @@ function SeatSlot({
     hand.length > 0 &&
     trumpsInHand(hand, trump).length === 0
   const faceCards = cold ? sortHand(hand, trump) : null
-  // Fixed fan footprint so decks don't jump as card count changes
+  // Fan footprint: 9 pre-trump, 6 in play
   const fanSlots = biddingLike ? 9 : 6
   const n = cold ? faceCards!.length : count
   const renderN = cold ? faceCards!.length : Math.min(count, fanSlots)
-  const purchased = new Set(purchasedIds)
 
   const deck = (
     <div className={`seat-deck ${position}`}>
@@ -834,17 +948,11 @@ function SeatSlot({
                   } as CSSProperties
                 }
               >
-                <CardView
-                  card={c}
-                  small
-                  purchased={purchased.has(c.id)}
-                />
+                <CardView card={c} small />
               </div>
             ))
           : Array.from({ length: renderN }).map((_, i) => {
-              // Face-down: mark purchase dots for known leftover ids (stable order)
               const c = hand[i]
-              const isPurchased = c ? purchased.has(c.id) : false
               return (
                 <div
                   key={c?.id ?? i}
@@ -857,12 +965,7 @@ function SeatSlot({
                   }
                 >
                   {c ? (
-                    <CardView
-                      card={c}
-                      faceDown
-                      small
-                      purchased={isPurchased}
-                    />
+                    <CardView card={c} faceDown small />
                   ) : (
                     <div className="card face-down card-sm" aria-hidden />
                   )}
@@ -873,41 +976,41 @@ function SeatSlot({
     </div>
   )
 
-  // Fixed-size slot so bid pills never shift E/W (or N) layout
-  const callout = (
-    <div className={`seat-callout-slot ${position}`} aria-hidden={!bidStatus}>
-      {bidStatus ? (
-        <div
-          className={`seat-bid-callout ${position} ${bidFresh ? 'fresh' : ''} ${bidStatus === 'Pass' ? 'pass' : ''} ${bidStatus === '…' ? 'waiting' : ''}`}
-        >
-          {bidStatus}
-        </div>
-      ) : null}
+  // Bid pill + played stack share one fixed gutter (overlay) so layout never jumps
+  const playGutter = (
+    <div className={`seat-play-gutter ${position}`}>
+      <div
+        className={`seat-callout-slot ${position}`}
+        aria-hidden={!bidStatus}
+      >
+        {bidStatus ? (
+          <div
+            className={`seat-bid-callout ${position} ${bidFresh ? 'fresh' : ''} ${bidStatus === 'Pass' ? 'pass' : ''} ${bidStatus === '…' ? 'waiting' : ''}`}
+          >
+            {bidStatus}
+          </div>
+        ) : null}
+      </div>
+      <PlayedStack
+        cards={playedCards}
+        position={position as 'north' | 'south' | 'west' | 'east'}
+      />
     </div>
   )
 
-  const played = (
-    <PlayedStack
-      cards={playedCards}
-      position={position as 'north' | 'south' | 'west' | 'east'}
-    />
-  )
-
-  // West: deck | callout | played · East: played | callout | deck · North: deck, callout, played
+  // West: deck | gutter · East: gutter | deck · North: deck, gutter
   if (position === 'west') {
     return (
       <div className={`seat-slot west ${active ? 'turn' : ''}`}>
         {deck}
-        {callout}
-        {played}
+        {playGutter}
       </div>
     )
   }
   if (position === 'east') {
     return (
       <div className={`seat-slot east ${active ? 'turn' : ''}`}>
-        {played}
-        {callout}
+        {playGutter}
         {deck}
       </div>
     )
@@ -915,8 +1018,7 @@ function SeatSlot({
   return (
     <div className={`seat-slot north ${active ? 'turn' : ''}`}>
       {deck}
-      {callout}
-      {played}
+      {playGutter}
     </div>
   )
 }

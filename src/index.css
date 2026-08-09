@@ -76,19 +76,29 @@ button {
 
 /* —— Lobby —— */
 .lobby {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  padding: 1.25rem 1.25rem 2rem;
+  gap: clamp(0.45rem, 1.6vh, 1.25rem);
+  padding:
+    clamp(0.45rem, 1.8vh, 1.25rem)
+    1.15rem
+    clamp(0.55rem, 2vh, 2rem);
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
+  /* Short screens may scroll; ≥600px is forced to fit (see media below) */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .lobby-hero {
   text-align: center;
-  padding: 1.5rem 0 0.5rem;
+  padding: clamp(0.25rem, 1.5vh, 1.5rem) 0 clamp(0.15rem, 0.6vh, 0.5rem);
+  flex-shrink: 0;
 }
 
 .lobby-badge {
@@ -100,63 +110,78 @@ button {
   border: 1px solid var(--accent-dim);
   border-radius: 999px;
   padding: 0.25rem 0.75rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: clamp(0.25rem, 1vh, 0.75rem);
 }
 
 .lobby h1 {
-  font-size: clamp(2.5rem, 10vw, 3.25rem);
+  font-size: clamp(1.85rem, 5.5vh, 3.25rem);
   margin: 0;
   letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
 .lobby-sub {
   color: var(--muted);
-  margin: 0.5rem 0 0;
+  margin: clamp(0.2rem, 0.7vh, 0.5rem) 0 0;
+  font-size: clamp(0.8rem, 1.6vh, 0.95rem);
+  line-height: 1.3;
 }
 
-.panel {
+.lobby .panel {
   background: var(--bg-elevated);
   border-radius: var(--radius);
-  padding: 1rem 1.1rem 1.15rem;
+  padding: clamp(0.55rem, 1.3vh, 1rem) 1rem clamp(0.6rem, 1.4vh, 1.15rem);
   border: 1px solid #243328;
+  flex-shrink: 0;
 }
 
-.panel h2 {
-  margin: 0 0 0.25rem;
-  font-size: 1.05rem;
+.lobby .panel h2 {
+  margin: 0 0 0.15rem;
+  font-size: clamp(0.9rem, 1.8vh, 1.05rem);
 }
 
-.hint {
-  margin: 0 0 1rem;
+.lobby .hint {
+  margin: 0 0 clamp(0.35rem, 1vh, 1rem);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: clamp(0.75rem, 1.5vh, 0.9rem);
+  line-height: 1.3;
 }
 
 .diff-row {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 0.85rem;
+  gap: 0.3rem;
+  margin-bottom: clamp(0.4rem, 1vh, 0.85rem);
+}
+
+.diff-row:last-child {
+  margin-bottom: 0;
 }
 
 .diff-label {
-  font-size: 0.9rem;
+  font-size: clamp(0.78rem, 1.5vh, 0.9rem);
   color: var(--muted);
 }
 
 .diff-pills {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.4rem;
+  gap: 0.35rem;
+}
+
+.mode-pills {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 0.15rem;
 }
 
 .pill {
-  padding: 0.55rem 0.4rem;
+  padding: clamp(0.35rem, 0.9vh, 0.55rem) 0.35rem;
   border-radius: 10px;
   background: #0f1812;
   border: 1px solid #2a3a2e;
   text-transform: capitalize;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 1.5vh, 0.9rem);
+  min-height: 0;
 }
 
 .pill.active {
@@ -169,8 +194,87 @@ button {
 .lobby-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: clamp(0.4rem, 1vh, 0.65rem);
   margin-top: auto;
+  flex-shrink: 0;
+  padding-top: 0.15rem;
+}
+
+.lobby-actions .btn {
+  min-height: clamp(40px, 6.5vh, 48px);
+  padding: clamp(0.45rem, 1vh, 0.75rem) 1.1rem;
+}
+
+/*
+ * First page must fit the viewport when height ≥ 600px — no scroll, no clip.
+ * Fluid clamps above already shrink chrome; this locks overflow and trims more.
+ */
+@media (min-height: 600px) {
+  .lobby {
+    overflow: hidden;
+    justify-content: flex-start;
+  }
+
+  .lobby-hero {
+    padding-top: 0.35rem;
+  }
+
+  .lobby-sub {
+    /* One line when possible */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lobby .hint {
+    /* Keep mode/robot blurbs short on mid-height phones */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
+/* Extra headroom on short-but-≥600 landscape / small phones */
+@media (min-height: 600px) and (max-height: 720px) {
+  .lobby {
+    gap: 0.45rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .lobby-badge {
+    margin-bottom: 0.2rem;
+    padding: 0.12rem 0.55rem;
+    font-size: 0.68rem;
+  }
+
+  .lobby h1 {
+    font-size: 1.85rem;
+  }
+
+  .lobby .panel {
+    padding: 0.5rem 0.85rem 0.55rem;
+  }
+
+  .lobby .hint {
+    margin-bottom: 0.3rem;
+    font-size: 0.75rem;
+  }
+
+  .diff-row {
+    margin-bottom: 0.35rem;
+    gap: 0.2rem;
+  }
+
+  .pill {
+    padding: 0.32rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .lobby-actions .btn {
+    min-height: 40px;
+  }
 }
 
 .btn {
@@ -360,8 +464,17 @@ button {
 .felt {
   /*
    * Largest square that fits the host.
-   * JS sets exact px (and --felt-side); CSS fallback uses container size units.
+   * JS sets exact px, --felt-side, --ui-scale, and card size vars from felt side.
    */
+  --ui-scale: 1;
+  --play-cw: 3.4rem;
+  --play-ch: 4.8rem;
+  --seat-cw: 2.8rem;
+  --seat-ch: 3.9rem;
+  --hand-cw: 2.75rem;
+  --hand-ch: 3.85rem;
+  --dump-cw: 1.85rem;
+  --dump-ch: 2.55rem;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -611,7 +724,8 @@ button {
   max-width: 100%;
   max-height: 100%;
   z-index: 1;
-  overflow: hidden;
+  /* Visible so dump piles (non-trumps) are never clipped away */
+  overflow: visible;
 }
 
 .grid-south {
@@ -740,13 +854,14 @@ button {
 }
 
 /*
- * Seat = deck block (label 10px above backs) + played card.
+ * Seat = deck block (label 10px above backs) + played stack 10px from deck.
  * West/East: flex row, top-aligned so played card tops with deck (not label).
  */
 .seat-slot {
   display: flex;
   opacity: 0.95;
   overflow: visible;
+  gap: 10px; /* deck ↔ played */
 }
 
 .seat-slot.turn {
@@ -760,19 +875,16 @@ button {
 .seat-slot.north {
   flex-direction: column;
   align-items: center;
-  gap: 14px;
 }
 
 .seat-slot.west {
   flex-direction: row;
   align-items: flex-start; /* played card top = deck top */
-  gap: 16px;
 }
 
 .seat-slot.east {
   flex-direction: row; /* DOM is already played then deck */
   align-items: flex-start;
-  gap: 16px;
 }
 
 /* Label + deck only — name is never next to the played card */
@@ -795,23 +907,22 @@ button {
   width: 100%;
 }
 
-/* Offset played stack down by label height + 10px so it lines up with deck backs */
-.seat-slot.west .played-stack,
-.seat-slot.east .played-stack {
+/* E/W play gutter lines up with deck backs (below name label) */
+.seat-slot.west .seat-play-gutter,
+.seat-slot.east .seat-play-gutter {
   margin-top: calc(0.95rem * 1.2 + 10px);
 }
 
 /*
  * Robot deck fans: max 50% card overlap (step = 50% of card size).
  * --n is set inline from card count (9 in bidding, remaining in play).
+ * N: horizontal fan. E/W: vertical fan, cards upright (readable when cold-revealed).
  */
 .seat-cards {
-  --seat-cw: 2.8rem;
-  --seat-ch: 3.85rem;
-  /* Horizontal fan step: 50% of card width → max 50% overlap */
+  /* --seat-cw / --seat-ch inherit from .felt (scaled by JS) */
   --seat-step-x: calc(var(--seat-cw) * 0.5);
-  /* Vertical fan (rotated W/E): visual height ≈ card width after 90° */
-  --seat-step-y: calc(var(--seat-cw) * 0.5);
+  /* Vertical step uses card height (upright E/W stacks) */
+  --seat-step-y: calc(var(--seat-ch) * 0.5);
   position: relative;
   flex-shrink: 0;
 }
@@ -844,12 +955,13 @@ button {
   height: var(--seat-ch);
 }
 
+/* E/W: upright cards stacked vertically (no 90° rotate) */
 .seat-cards.fan.west,
 .seat-cards.fan.east {
-  /* After 90° rotate: visual size is ch × cw */
-  width: var(--seat-ch);
-  height: calc(var(--seat-cw) + max(var(--n) - 1, 0) * var(--seat-step-y));
-  min-height: var(--seat-cw);
+  width: var(--seat-cw);
+  min-width: var(--seat-cw);
+  height: calc(var(--seat-ch) + max(var(--n) - 1, 0) * var(--seat-step-y));
+  min-height: var(--seat-ch);
 }
 
 .seat-cards.fan.west .card-back,
@@ -857,14 +969,13 @@ button {
 .seat-cards.fan.west .seat-card-wrap,
 .seat-cards.fan.east .seat-card-wrap {
   position: absolute;
-  left: 50%;
-  /* Center-based stack so rotated bounds fit height formula */
-  top: calc(var(--seat-cw) / 2 + var(--i) * var(--seat-step-y));
-  transform: translate(-50%, -50%) rotate(90deg);
+  left: 0;
+  top: calc(var(--i) * var(--seat-step-y));
+  transform: none;
   transform-origin: center center;
 }
 
-/* Face-up leftovers (no trumps left) match back size */
+/* Face-up leftovers (no trumps left) — same upright size as backs */
 .seat-cards .seat-card-wrap .card,
 .seat-cards .seat-card-wrap button.card {
   width: var(--seat-cw);
@@ -881,38 +992,83 @@ button {
 }
 
 /*
- * Fixed callout gutters — always reserved so E/W/N never jump when a bid appears.
- * West: between deck and played · East: between played and deck · North: under deck.
+ * Shared play gutter: bid callout + played stack occupy the SAME grid cell.
+ * Sized by the played-stack footprint so deck↔gutter stays 10px with no jump.
+ * (CSS grid stack — not absolute-to-felt — so N/S never float to the table center.)
  */
-.seat-callout-slot {
-  --callout-slot-w: 3.25rem;
-  flex-shrink: 0;
+.seat-play-gutter {
+  --play-step-x: calc(var(--play-cw, 3.4rem) * 0.6);
+  --play-step-y: calc(var(--play-ch, 4.8rem) * 0.6);
   position: relative;
+  flex-shrink: 0;
+  display: grid;
+  grid-template: 1fr / 1fr;
+  place-items: center;
+  box-sizing: border-box;
+  isolation: isolate;
+}
+
+/* Both layers share the single grid cell */
+.seat-play-gutter > .seat-callout-slot,
+.seat-play-gutter > .played-stack {
+  grid-area: 1 / 1;
+}
+
+/* E/W: gutter = vertical 6-card play fan */
+.seat-play-gutter.west,
+.seat-play-gutter.east {
+  width: var(--play-cw, 3.4rem);
+  min-width: var(--play-cw, 3.4rem);
+  height: calc(var(--play-ch, 4.8rem) + 5 * var(--play-step-y));
+  min-height: calc(var(--play-ch, 4.8rem) + 5 * var(--play-step-y));
+}
+
+/* N: gutter = horizontal 6-card play fan, tight under the deck */
+.seat-play-gutter.north {
+  width: calc(var(--play-cw, 3.4rem) + 5 * var(--play-step-x));
+  min-width: calc(var(--play-cw, 3.4rem) + 5 * var(--play-step-x));
+  max-width: 100%;
+  height: var(--play-ch, 4.8rem);
+  min-height: var(--play-ch, 4.8rem);
+  place-items: center;
+}
+
+.seat-play-gutter.north > .played-stack {
+  place-self: center;
+}
+
+/*
+ * North bid: pin to TOP of the play gutter (same 10px deck gap as E/W).
+ * Do not stretch callout to full play-ch or the pill centers mid-fan.
+ */
+.seat-play-gutter.north > .seat-callout-slot {
+  place-self: start center;
+  align-self: start;
+  width: auto;
+  height: auto;
+  max-height: 100%;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Bid pill layer over played cards — same cell, no extra flow size */
+.seat-callout-slot {
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
   box-sizing: border-box;
 }
 
-/* E/W: same top offset as played stack; height matches 9-card fan so pill is centered on faces */
-.seat-callout-slot.west,
-.seat-callout-slot.east {
-  width: var(--callout-slot-w);
-  min-width: var(--callout-slot-w);
-  align-self: flex-start;
-  margin-top: calc(0.95rem * 1.2 + 10px);
-  /* seat-cw + 8 * (seat-cw * 0.5) for 9 rotated cards */
-  height: calc(2.8rem + 8 * (2.8rem * 0.5));
-  min-height: calc(2.8rem + 8 * (2.8rem * 0.5));
+.seat-callout-slot:empty {
+  display: none;
 }
 
-.seat-callout-slot.north {
-  width: 100%;
-  min-height: 2.8rem;
-  height: 2.8rem;
-}
-
-/* Bid pills centered in the reserved slot */
+/* Bid pills centered in the shared gutter */
 .seat-bid-callout {
   position: relative;
   z-index: 20;
@@ -1143,56 +1299,101 @@ button {
   border: 1px solid #ccc;
 }
 
-/* Compact 2×2 dump piles — small faces, tight vertical stack */
-.dump-grid {
+/*
+ * Center dump piles in a diamond — each pile maps to a seat:
+ *        N
+ *    W       E
+ *        S (You)
+ * Content-sized CSS grid (not absolute box) so cards are never clipped away.
+ * Cards inside a pile: 50% H/V overlap; 4+ use rows 2 → 3 → 2.
+ */
+.dump-diamond {
+  --dump-step-x: calc(var(--dump-cw) * 0.5);
+  --dump-step-y: calc(var(--dump-ch) * 0.5);
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
-  gap: 0.25rem 0.55rem;
-  width: 6.8rem;
-  flex-shrink: 0;
-  align-items: start;
+  grid-template-columns: auto auto auto;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    '. n .'
+    'w c e'
+    '. s .';
+  /* ~50% pile-to-pile overlap toward center */
+  column-gap: calc(var(--dump-cw) * -0.35);
+  row-gap: calc(var(--dump-ch) * -0.3);
+  align-items: center;
   justify-items: center;
+  flex-shrink: 1;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  z-index: 2;
+  /* Allow fans to paint; parent may still clip if extremely tight */
+  overflow: visible;
 }
 
 .dump-pile {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.05rem;
-  width: 2.4rem;
+  gap: 0.08rem;
+  z-index: 2;
+  /* Never shrink cards out of existence */
+  flex-shrink: 0;
+  min-width: var(--dump-cw);
+  min-height: var(--dump-ch);
+}
+
+.dump-seat-tag {
+  font-size: calc(0.58rem * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
 }
 
 .dump-n {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.dump-e {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.dump-w {
-  grid-column: 1;
-  grid-row: 2;
+  grid-area: n;
+  z-index: 4;
 }
 
 .dump-s {
-  grid-column: 2;
-  grid-row: 2;
+  grid-area: s;
+  z-index: 4;
+}
+
+.dump-w {
+  grid-area: w;
+  z-index: 3;
+}
+
+.dump-e {
+  grid-area: e;
+  z-index: 3;
 }
 
 .dump-fan {
   position: relative;
-  width: 2.1rem;
-  height: 2.85rem;
+  width: calc(
+    var(--dump-cw) + (var(--dump-cols, 1) - 1) * var(--dump-step-x)
+  );
+  height: calc(
+    var(--dump-ch) + (var(--dump-rows, 1) - 1) * var(--dump-step-y)
+  );
+  min-width: var(--dump-cw);
+  min-height: var(--dump-ch);
   flex-shrink: 0;
 }
 
 .dump-empty {
-  width: 2.1rem;
-  height: 2.85rem;
+  width: var(--dump-cw);
+  height: var(--dump-ch);
+  min-width: var(--dump-cw);
+  min-height: var(--dump-ch);
   border-radius: 4px;
   border: 1px dashed rgba(255, 255, 255, 0.22);
   box-sizing: border-box;
@@ -1200,30 +1401,36 @@ button {
 
 .dump-card {
   position: absolute;
-  left: 0;
-  top: 0;
-  transform: translateY(calc(var(--i, 0) * 3px));
+  left: calc(var(--dc, 0) * var(--dump-step-x));
+  top: calc(var(--dr, 0) * var(--dump-step-y));
+  width: var(--dump-cw);
+  height: var(--dump-ch);
   flex-shrink: 0;
 }
 
-.dump-card .card {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  width: 2.1rem;
-  height: 2.85rem;
+.dump-card .card,
+.dump-card .card.card-sm,
+.dump-card button.card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  width: var(--dump-cw) !important;
+  height: var(--dump-ch) !important;
+  min-width: var(--dump-cw);
+  min-height: var(--dump-ch);
+  display: block;
 }
 
 .dump-card .card .card-rank {
-  font-size: 0.65rem;
-  top: 0.08rem;
-  left: 0.1rem;
+  font-size: max(0.55rem, calc(0.62rem * var(--ui-scale, 1)));
+  top: 0.06rem;
+  left: 0.08rem;
 }
 
 .dump-card .card .card-suit-center {
-  font-size: 1.1rem;
+  font-size: max(0.8rem, calc(0.95rem * var(--ui-scale, 1)));
 }
 
 .dump-extra {
-  font-size: 0.6rem;
+  font-size: calc(0.58rem * var(--ui-scale, 1));
   font-weight: 700;
   color: rgba(255, 255, 255, 0.65);
   line-height: 1;
@@ -1235,8 +1442,7 @@ button {
  * E/W: vertical, 50% overlap; latest at top of stack (y=0) + highest z.
  */
 .played-stack {
-  --play-cw: 3.4rem;
-  --play-ch: 4.8rem;
+  /* --play-cw / --play-ch inherit from .felt (scaled by JS) */
   /* N/S: 60% of card width visible (40% overlap) */
   --play-step-x: calc(var(--play-cw) * 0.6);
   /* E/W: 60% of card height visible (40% overlap) */
@@ -1248,8 +1454,8 @@ button {
 }
 
 .played-stack.empty {
-  width: var(--play-cw);
-  height: var(--play-ch);
+  width: var(--play-cw, 3.4rem);
+  height: var(--play-ch, 4.8rem);
 }
 
 .played-stack .played-stack-card .card,
@@ -1262,10 +1468,18 @@ button {
 /* North / South: fixed width for 6 slots so layout never jumps */
 .played-stack.north,
 .played-stack.south {
-  width: calc(var(--play-cw) + 5 * var(--play-step-x));
-  height: var(--play-ch);
-  min-height: var(--play-ch);
+  --play-step-x: calc(var(--play-cw, 3.4rem) * 0.6);
+  width: calc(var(--play-cw, 3.4rem) + 5 * var(--play-step-x));
+  height: var(--play-ch, 4.8rem);
+  min-height: var(--play-ch, 4.8rem);
   max-width: 100%;
+}
+
+/* Empty N/S still reserve full fan so bid overlay box never collapses */
+.played-stack.north.empty,
+.played-stack.south.empty {
+  width: calc(var(--play-cw, 3.4rem) + 5 * var(--play-step-x));
+  height: var(--play-ch, 4.8rem);
 }
 
 .played-stack.north .played-stack-card,
@@ -1292,81 +1506,97 @@ button {
 }
 
 /*
- * South play: always reserve full 6-card fan width (centered).
+ * South: two always-reserved strips above You (never absolute-to-felt).
+ * 1) play gutter — fixed play-card height (played cards)
+ * 2) bid strip — fixed chip height (bid buttons / your bid number)
+ * Empty or filled: same heights → no board jump; bids stay above You.
  */
-.south-play-slot {
-  --play-cw: 3.4rem;
-  --play-ch: 4.8rem;
-  --play-step-x: calc(var(--play-cw) * 0.6);
-  width: calc(var(--play-cw) + 5 * var(--play-step-x));
-  min-width: calc(var(--play-cw) + 5 * var(--play-step-x));
-  min-height: 4.8rem;
+.south-play-gutter {
+  --play-step-x: calc(var(--play-cw, 3.4rem) * 0.6);
+  --south-gutter-h: var(--play-ch, 4.8rem);
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: var(--south-gutter-h);
+  min-height: var(--south-gutter-h);
+  max-height: var(--south-gutter-h);
+  flex: 0 0 var(--south-gutter-h);
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  flex-shrink: 0;
-  align-self: center;
-  margin: 0 auto 14px;
+  overflow: hidden;
+}
+
+.south-play-slot {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .south-play-slot .played-stack.south {
   margin: 0;
 }
 
-/*
- * Fixed-size strip for You’s bid chips. flex: 0 0 locks the basis so
- * min-height:auto content cannot expand the south row (which was
- * shrinking the center grid and twitching the upper board upward).
- */
+/* Fixed bid strip — always reserves space even when empty */
 .south-bid-slot {
-  --south-bid-h: 3rem;
-  flex: 0 0 var(--south-bid-h);
-  flex-grow: 0;
-  flex-shrink: 0;
+  --south-bid-h: 2.75rem;
+  position: relative;
+  z-index: 15;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   height: var(--south-bid-h);
   min-height: var(--south-bid-h);
   max-height: var(--south-bid-h);
-  margin: 0 0 10px;
-  padding: 0;
+  flex: 0 0 var(--south-bid-h);
+  margin: 0;
+  padding: 0 0.35rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  align-self: stretch;
   box-sizing: border-box;
   overflow: hidden;
 }
 
+/* :empty still keeps the fixed flex-basis height above */
 .south-bid-slot:empty {
-  /* keep reserved strip when React renders empty */
-  display: flex;
-  flex: 0 0 var(--south-bid-h);
-  height: var(--south-bid-h);
-  min-height: var(--south-bid-h);
-  max-height: var(--south-bid-h);
-  margin: 0 0 10px;
+  visibility: hidden;
 }
 
-/* You always 10px above hand cards (same as robot labels above decks) */
+.south-bid-slot > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/*
+ * You → hand = same 10px as seat-name → deck.
+ * Tight line-box so label doesn't add extra air above the cards.
+ */
 .grid-south .you-label {
   margin: 0 0 10px;
   padding: 0;
-  line-height: 1.15;
+  line-height: 1.2;
+  font-size: 0.95rem;
+  font-weight: 600;
   flex: 0 0 auto;
   align-self: center;
   text-align: center;
   width: 100%;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  /* Match seat-name block height */
+  min-height: calc(0.95rem * 1.2);
 }
 
-.grid-south .south-bid-slot {
-  align-self: stretch;
-  width: 100%;
-  max-width: 100%;
-}
-
-/* Compact bid / trump row above You · South — single line, no dock growth */
+/* Bid row in the fixed bid strip */
 .south-bid-row {
   display: flex;
   flex-wrap: nowrap;
@@ -1378,7 +1608,7 @@ button {
   height: 100%;
   max-height: 100%;
   margin: 0;
-  padding: 0 0.25rem;
+  padding: 0 0.15rem;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
@@ -1393,15 +1623,15 @@ button {
 .south-bid-chip {
   flex: 0 0 auto;
   min-width: 2.4rem;
-  height: 2.55rem;
-  max-height: 2.55rem;
+  height: 2.4rem;
+  max-height: 2.4rem;
   padding: 0 0.4rem;
   border-radius: 10px;
   background: #ffffff;
   color: #111;
   border: 1px solid #d0d4dc;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   line-height: 1;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
@@ -1433,10 +1663,10 @@ button {
 
 /* South callout (Pass / number after you bid) stays inside fixed strip */
 .south-bid-slot .seat-bid-callout.south {
-  min-height: 2.4rem;
-  max-height: 2.55rem;
+  min-height: 2.2rem;
+  max-height: 2.4rem;
   font-size: 1.15rem;
-  padding: 0.2rem 0.45rem;
+  padding: 0.15rem 0.45rem;
 }
 
 .hand-row.hand-trump-pick {
@@ -1467,10 +1697,12 @@ button {
 
 .you-label {
   text-align: center;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.85);
-  padding-bottom: 0;
+  line-height: 1.2;
+  padding: 0;
+  margin: 0;
 }
 
 .hand-row {
@@ -1509,18 +1741,22 @@ button {
   vertical-align: bottom;
 }
 
-/* Hand sits on the green felt — fixed height so playing cards never resizes south */
+/* Hand sits on the green felt — height tracks scaled hand cards */
 .hand-row.on-felt {
   width: 100%;
   margin-top: 0;
-  padding: 0.1rem 0.25rem 0.15rem;
+  /* Zero top pad: You’s 10px margin is the only gap (matches seat-name → deck) */
+  padding: 0 0.25rem 0;
   flex-shrink: 0;
   background: transparent;
   border: none;
   border-radius: 0;
-  height: 5.4rem;
-  min-height: 5.4rem;
-  max-height: 5.4rem;
+  height: var(--hand-ch);
+  min-height: var(--hand-ch);
+  max-height: var(--hand-ch);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
 
 .felt-status {
@@ -1563,18 +1799,18 @@ button {
  */
 .hand-row.on-felt .card,
 .hand-row.on-felt button.card {
-  width: 3.4rem;
-  height: 4.8rem;
-  min-width: 3.4rem;
-  max-width: 3.4rem;
-  min-height: 4.8rem;
-  max-height: 4.8rem;
-  flex: 0 0 3.4rem;
+  width: var(--hand-cw);
+  height: var(--hand-ch);
+  min-width: var(--hand-cw);
+  max-width: var(--hand-cw);
+  min-height: var(--hand-ch);
+  max-height: var(--hand-ch);
+  flex: 0 0 var(--hand-cw);
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   transform: none;
   box-sizing: border-box;
-  font-size: 16px;
+  font-size: calc(16px * var(--ui-scale, 1));
   padding: 0;
   margin: 0;
   border-width: 1px;
@@ -1877,10 +2113,11 @@ button.card.black {
     --play-ch: 5.5rem;
   }
 
-  .south-play-slot {
-    --play-cw: 3.9rem;
-    --play-ch: 5.5rem;
-    min-height: 5.5rem;
+  .south-play-gutter {
+    /* height still follows --play-ch from .felt; no separate jump */
+    min-height: var(--play-ch, 5.5rem);
+    max-height: var(--play-ch, 5.5rem);
+    flex-basis: var(--play-ch, 5.5rem);
   }
 
   .modal-backdrop {
@@ -1980,79 +2217,22 @@ button.card.black {
   margin-bottom: 4px;
 }
 
-.felt.felt-compact .seat-slot.west .played-stack,
-.felt.felt-compact .seat-slot.east .played-stack {
+.felt.felt-compact .seat-slot.west .seat-play-gutter,
+.felt.felt-compact .seat-slot.east .seat-play-gutter {
   margin-top: calc(0.72rem * 1.2 + 4px);
 }
 
-.felt.felt-compact .seat-cards {
-  --seat-cw: 1.85rem;
-  --seat-ch: 2.55rem;
-}
-
+/* Card sizes come from --ui-scale on .felt; compact only tightens chrome */
 .felt.felt-compact .card-back {
-  width: 1.85rem;
-  height: 2.55rem;
   border-radius: 4px;
 }
 
-.felt.felt-compact .seat-cards .seat-card-wrap .card,
-.felt.felt-compact .seat-cards .seat-card-wrap button.card {
-  width: 1.85rem;
-  height: 2.55rem;
+.felt.felt-compact .south-play-gutter {
+  margin-bottom: 10px;
 }
 
-.felt.felt-compact .seat-cards .seat-card-wrap .card .card-rank {
-  font-size: 0.62rem;
-}
-
-.felt.felt-compact .seat-cards .seat-card-wrap .card .card-suit-center {
-  font-size: 0.85rem;
-}
-
-.felt.felt-compact .played-stack {
-  --play-cw: 2.35rem;
-  --play-ch: 3.25rem;
-}
-
-.felt.felt-compact .south-play-slot {
-  --play-cw: 2.35rem;
-  --play-ch: 3.25rem;
-  min-height: 3.25rem;
-  margin-bottom: 8px;
-}
-
-.felt.felt-compact .seat-slot.north {
-  gap: 6px;
-}
-
-.felt.felt-compact .seat-slot.west,
-.felt.felt-compact .seat-slot.east {
-  gap: 6px;
-}
-
-.felt.felt-compact .seat-callout-slot.west,
-.felt.felt-compact .seat-callout-slot.east {
-  --callout-slot-w: 2.4rem;
-  width: var(--callout-slot-w);
-  min-width: var(--callout-slot-w);
-  margin-top: calc(0.72rem * 1.2 + 4px);
-  height: calc(1.85rem + 8 * (1.85rem * 0.5));
-  min-height: calc(1.85rem + 8 * (1.85rem * 0.5));
-}
-
-.felt.felt-compact .seat-callout-slot.north {
-  min-height: 2rem;
-  height: 2rem;
-}
-
-.felt.felt-compact .south-bid-slot,
-.felt.felt-compact .south-bid-slot:empty {
-  --south-bid-h: 2.15rem;
-  flex: 0 0 var(--south-bid-h);
-  height: var(--south-bid-h);
-  min-height: var(--south-bid-h);
-  max-height: var(--south-bid-h);
+.felt.felt-compact .seat-slot {
+  gap: 10px;
 }
 
 .felt.felt-compact .seat-bid-callout {
@@ -2068,55 +2248,36 @@ button.card.black {
   padding: 0.1rem 0.4rem;
 }
 
-.felt.felt-compact .dump-grid {
-  transform: scale(0.78);
-  transform-origin: center center;
-}
-
 .felt.felt-compact .you-label {
-  font-size: 0.8rem;
+  font-size: 0.72rem; /* match compact .seat-name */
 }
 
 .felt.felt-compact .grid-south .you-label {
-  margin-bottom: 6px;
-}
-
-.felt.felt-compact .south-bid-slot {
-  margin-bottom: 6px;
+  margin: 0 0 10px; /* same 10px as seat-name → deck */
+  font-size: 0.72rem;
+  line-height: 1.2;
+  min-height: calc(0.72rem * 1.2);
 }
 
 .felt.felt-compact .hand-row.on-felt {
-  height: 3.55rem;
-  min-height: 3.55rem;
-  max-height: 3.55rem;
-  padding: 0.05rem 0.2rem 0.1rem;
+  padding: 0 0.2rem;
+}
+
+.felt.felt-compact .south-play-gutter,
+.felt.felt-compact .south-bid-slot {
+  margin: 0;
+}
+
+.felt.felt-compact .south-bid-slot {
+  --south-bid-h: 2.4rem;
+  height: var(--south-bid-h);
+  min-height: var(--south-bid-h);
+  max-height: var(--south-bid-h);
+  flex-basis: var(--south-bid-h);
 }
 
 .felt.felt-compact .hand-track {
   padding: 0 0.1rem;
-}
-
-.felt.felt-compact .hand-row.on-felt .card,
-.felt.felt-compact .hand-row.on-felt button.card {
-  width: 2.15rem;
-  height: 3rem;
-  min-width: 2.15rem;
-  max-width: 2.15rem;
-  min-height: 3rem;
-  max-height: 3rem;
-  flex: 0 0 2.15rem;
-  border-radius: 5px;
-  font-size: 14px;
-}
-
-.felt.felt-compact .hand-row.on-felt .card .card-rank {
-  font-size: 0.72rem;
-  top: 0.1rem;
-  left: 0.12rem;
-}
-
-.felt.felt-compact .hand-row.on-felt .card .card-suit-center {
-  font-size: 1.15rem;
 }
 
 .felt.felt-compact .hand-suit-group {

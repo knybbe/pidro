@@ -37,6 +37,9 @@ export function teamOf(seat: Seat): Team {
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
+/** Classic: 9 cards, refill from stock after trump. Kokkola: +4 after bidding (pack empty). */
+export type GameMode = 'classic' | 'kokkola'
+
 export type Phase =
   | 'lobby'
   | 'bidding'
@@ -87,6 +90,8 @@ export interface HandHistoryEntry {
 export interface GameState {
   phase: Phase
   seats: [SeatConfig, SeatConfig, SeatConfig, SeatConfig]
+  /** Classic vs Kokkola (+4 cards each after bidding) */
+  gameMode: GameMode
   /** Cumulative match scores for team 0 (S-N) and team 1 (W-E) */
   scores: [number, number]
   dealer: Seat
@@ -120,6 +125,7 @@ export interface GameState {
   /**
    * Card ids received from the stock refill / dealer purchase after trump.
    * UI shows a yellow mark until the card is played (or revealed face-up).
+   * Only shown on the human hand in the UI.
    */
   purchasedIds: string[]
   currentSeat: Seat | null

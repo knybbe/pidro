@@ -15,6 +15,7 @@ import { matchWinner, scoreHand } from './score'
 import type {
   Card,
   Difficulty,
+  GameMode,
   GameState,
   Seat,
   SeatConfig,
@@ -22,6 +23,8 @@ import type {
   TrickPlay,
 } from './types'
 import { teamOf } from './types'
+
+export type { GameMode }
 
 function emptyHands(): [Card[], Card[], Card[], Card[]] {
   return [[], [], [], []]
@@ -74,10 +77,12 @@ export function defaultSeats(
 export function createLobbyState(
   seed = Date.now(),
   seats = defaultSeats(),
+  gameMode: GameMode = 'classic',
 ): GameState {
   return {
     phase: 'lobby',
     seats,
+    gameMode,
     scores: [0, 0],
     dealer: 0,
     hands: emptyHands(),
@@ -109,13 +114,15 @@ export function startMatch(
   options?: {
     seed?: number
     difficulties?: [Difficulty, Difficulty, Difficulty]
+    gameMode?: GameMode
   },
 ): GameState {
   const seats = options?.difficulties
     ? defaultSeats(options.difficulties)
     : state.seats
   const seed = options?.seed ?? Date.now()
-  let next = createLobbyState(seed, seats)
+  const gameMode = options?.gameMode ?? state.gameMode ?? 'classic'
+  let next = createLobbyState(seed, seats, gameMode)
   next = dealHand(next, 0)
   return next
 }
@@ -215,7 +222,7 @@ export function placeBid(
     // If somehow no bidder (shouldn't with forced dealer), force dealer 6
     const finalBidder = bidder ?? state.dealer
     const finalBid = highBid ?? MIN_BID
-    return {
+    let next: GameState = {
       ...state,
       bids,
       highBid: finalBid,
@@ -224,6 +231,15 @@ export function placeBid(
       currentSeat: finalBidder,
       message: `${actorPhrase(state.seats[finalBidder].name, 'won')} the bid at ${finalBid} — choose trump`,
     }
+    // Kokkola: +4 each after bidding (in engine only; UI keeps showing 9 until trump)
+    if (state.gameMode === 'kokkola') {
+      next = dealExtraCards(next, 4)
+      next = {
+        ...next,
+        message: `${actorPhrase(state.seats[finalBidder].name, 'won')} the bid at ${finalBid} — choose trump`,
+      }
+    }
+    return next
   }
 
   return {
@@ -257,7 +273,30 @@ export function chooseTrump(state: GameState, seat: Seat, trump: Suit): GameStat
 }
 
 /**
+ * Deal `count` extra cards to each seat (left of dealer first).
+ * Used by Kokkola mode after bidding.
+ */
+export function dealExtraCards(state: GameState, count: number): GameState {
+  const hands = state.hands.map((h) => [...h]) as [
+    Card[],
+    Card[],
+    Card[],
+    Card[],
+  ]
+  let stock = [...state.stock]
+  let s = nextSeat(state.dealer)
+  for (let p = 0; p < 4; p++) {
+    for (let i = 0; i < count && stock.length > 0; i++) {
+      hands[s].push(stock.shift()!)
+    }
+    s = nextSeat(s)
+  }
+  return { ...state, hands, stock }
+}
+
+/**
  * Discard non-trumps, refill non-dealers to 6, dealer robs stock to 6.
+ * Kokkola: no stock refill (extra cards already dealt after bidding).
  * Then enter playing phase.
  */
 export function performDiscardAndRefill(state: GameState): GameState {
@@ -295,28 +334,33 @@ export function performDiscardAndRefill(state: GameState): GameState {
   // Track cards drawn from stock (purchase / refill) for UI markers
   const purchasedIds: string[] = []
 
-  // 2. Non-dealers refill from stock (order: left of dealer first)
-  let s = nextSeat(state.dealer)
-  for (let i = 0; i < 3; i++) {
-    while (hands[s].length < HAND_SIZE_AFTER_DISCARD && stock.length > 0) {
-      const drawn = stock.shift()!
-      hands[s].push(drawn)
-      purchasedIds.push(drawn.id)
+  // Classic only: refill from stock. Kokkola already dealt +4 after bidding.
+  if (state.gameMode !== 'kokkola') {
+    // 2. Non-dealers refill from stock (order: left of dealer first)
+    let s = nextSeat(state.dealer)
+    for (let i = 0; i < 3; i++) {
+      while (hands[s].length < HAND_SIZE_AFTER_DISCARD && stock.length > 0) {
+        const drawn = stock.shift()!
+        hands[s].push(drawn)
+        purchasedIds.push(drawn.id)
+      }
+      s = nextSeat(s)
     }
-    s = nextSeat(s)
-  }
 
-  // 3. Dealer takes remaining stock and discards to 6
-  const dealer = state.dealer
-  const dealerStock = [...stock]
-  hands[dealer] = [...hands[dealer], ...dealerStock]
-  stock = []
-  const dealerResult = discardDownToSix(hands[dealer], trump)
-  hands[dealer] = dealerResult.keep
-  dumpPiles[dealer].push(...dealerResult.discarded)
-  const keptIds = new Set(dealerResult.keep.map((c) => c.id))
-  for (const c of dealerStock) {
-    if (keptIds.has(c.id)) purchasedIds.push(c.id)
+    // 3. Dealer takes remaining stock and discards to 6
+    const dealer = state.dealer
+    const dealerStock = [...stock]
+    hands[dealer] = [...hands[dealer], ...dealerStock]
+    stock = []
+    const dealerResult = discardDownToSix(hands[dealer], trump)
+    hands[dealer] = dealerResult.keep
+    dumpPiles[dealer].push(...dealerResult.discarded)
+    const keptIds = new Set(dealerResult.keep.map((c) => c.id))
+    for (const c of dealerStock) {
+      if (keptIds.has(c.id)) purchasedIds.push(c.id)
+    }
+  } else {
+    stock = []
   }
 
   // Low holder: who holds trump 2 after discard
@@ -833,6 +877,7 @@ export function nextHand(state: GameState): GameState {
 export function rematch(state: GameState): GameState {
   return startMatch(state, {
     seed: state.seed + 100,
+    gameMode: state.gameMode,
     difficulties: [
       state.seats[1].difficulty ?? 'medium',
       state.seats[2].difficulty ?? 'medium',

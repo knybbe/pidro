@@ -13,6 +13,7 @@ function baseState(overrides: Partial<GameState>): GameState {
       { kind: 'bot', difficulty: 'hard', name: 'North' },
       { kind: 'bot', difficulty: 'hard', name: 'East' },
     ],
+    gameMode: 'classic',
     scores: [0, 0],
     dealer: 0,
     hands: [empty, empty, empty, empty],
