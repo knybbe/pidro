@@ -74,6 +74,16 @@ export interface HandResult {
   scoresAfter: [number, number]
 }
 
+/** One completed hand for the match score sheet (e.g. S7, 8 6, 32 40). */
+export interface HandHistoryEntry {
+  bidder: Seat
+  bid: number
+  made: boolean
+  teamPointsTaken: [number, number]
+  teamScoreDelta: [number, number]
+  scoresAfter: [number, number]
+}
+
 export interface GameState {
   phase: Phase
   seats: [SeatConfig, SeatConfig, SeatConfig, SeatConfig]
@@ -104,6 +114,8 @@ export interface GameState {
   activeSeats: Seat[]
   currentSeat: Seat | null
   handResult: HandResult | null
+  /** Finished hands this match (round score sheet) */
+  handHistory: HandHistoryEntry[]
   targetScore: number
   /** RNG seed for reproducibility */
   seed: number

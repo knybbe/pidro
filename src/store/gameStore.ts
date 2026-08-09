@@ -109,32 +109,59 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   play: (cardId) => {
-    const { state } = get()
-    if (state.phase !== 'playing' || state.currentSeat === null) return
-    if (state.seats[state.currentSeat].kind !== 'human') return
+    clearBot(get, set)
+    let state = get().state
+
+    // Clicking a card during trick pause: advance the table, then play if legal
+    if (state.phase === 'trick_pause') {
+      try {
+        state = continueAfterTrick(state)
+        set({ state })
+      } catch (e) {
+        console.error('continue before play failed', e)
+        return
+      }
+    }
+
+    if (state.phase !== 'playing' || state.currentSeat === null) {
+      queueMicrotask(() => get().kickBots())
+      return
+    }
+    if (state.seats[state.currentSeat].kind !== 'human') {
+      queueMicrotask(() => get().kickBots())
+      return
+    }
     try {
-      applyHuman(get, set, (s) => playCard(s, s.currentSeat as Seat, cardId))
+      const next = playCard(state, state.currentSeat as Seat, cardId)
+      set({ state: next })
+      queueMicrotask(() => get().kickBots())
     } catch (e) {
+      // Card not legal after continue (e.g. not our lead) — leave advanced state
       console.error('play failed', e)
+      queueMicrotask(() => get().kickBots())
     }
   },
 
   continuePlay: () => {
     clearBot(get, set)
     const { state } = get()
-    if (state.phase === 'trick_pause') {
-      set({ state: continueAfterTrick(state) })
-      queueMicrotask(() => get().kickBots())
-      return
-    }
-    if (state.phase === 'hand_result') {
-      set({ state: nextHand(state) })
-      queueMicrotask(() => get().kickBots())
-      return
-    }
-    if (state.phase === 'game_over') {
-      set({ state: rematch(state) })
-      queueMicrotask(() => get().kickBots())
+    try {
+      if (state.phase === 'trick_pause') {
+        set({ state: continueAfterTrick(state) })
+        queueMicrotask(() => get().kickBots())
+        return
+      }
+      if (state.phase === 'hand_result') {
+        set({ state: nextHand(state) })
+        queueMicrotask(() => get().kickBots())
+        return
+      }
+      if (state.phase === 'game_over') {
+        set({ state: rematch(state) })
+        queueMicrotask(() => get().kickBots())
+      }
+    } catch (e) {
+      console.error('continuePlay failed', e)
     }
   },
 

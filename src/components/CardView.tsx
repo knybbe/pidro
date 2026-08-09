@@ -38,7 +38,7 @@ export function CardView({
     </>
   )
 
-  if (onClick && !disabled) {
+  if (onClick) {
     return (
       <button
         type="button"

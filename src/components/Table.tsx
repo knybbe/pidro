@@ -8,6 +8,7 @@ import {
 } from 'react'
 import {
   canPass,
+  continueAfterTrick,
   groupHand,
   legalBids,
   legalPlays,
@@ -16,6 +17,7 @@ import {
   suitSymbol,
   trumpsInHand,
   type Card,
+  type HandHistoryEntry,
   type Phase,
   type Seat,
   type Suit,
@@ -24,6 +26,21 @@ import { useGameStore, type BidDelaySec } from '../store/gameStore'
 import { CardView } from './CardView'
 
 const BID_DELAYS: BidDelaySec[] = [0, 1, 2, 3]
+/** Seat letters for score sheet (S W N E) */
+const SEAT_LETTER = ['S', 'W', 'N', 'E'] as const
+
+/** Columns: bidder+bid | pts Us Them | score Us Them */
+function formatRoundCols(h: HandHistoryEntry): {
+  bid: string
+  pts: string
+  score: string
+} {
+  return {
+    bid: `${SEAT_LETTER[h.bidder]}${h.bid}`,
+    pts: `${h.teamPointsTaken[0]} ${h.teamPointsTaken[1]}`,
+    score: `${h.scoresAfter[0]} ${h.scoresAfter[1]}`,
+  }
+}
 
 export function Table({ onShowRules }: { onShowRules: () => void }) {
   const state = useGameStore((s) => s.state)
@@ -45,22 +62,39 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   const choosingTrump =
     state.phase === 'choose_trump' && state.bidder === humanSeat
 
-  const playableIds =
-    state.phase === 'playing' && humanTurn
-      ? new Set(legalPlays(state, humanSeat).map((c) => c.id))
-      : choosingTrump
-        ? new Set(state.hands[humanSeat].map((c) => c.id))
-        : new Set<string>()
+  // Cards playable now, or after continue (trick_pause → lead/play)
+  const playableIds = (() => {
+    if (choosingTrump) {
+      return new Set(state.hands[humanSeat].map((c) => c.id))
+    }
+    if (state.phase === 'playing' && humanTurn) {
+      return new Set(legalPlays(state, humanSeat).map((c) => c.id))
+    }
+    if (state.phase === 'trick_pause') {
+      try {
+        const next = continueAfterTrick(state)
+        if (next.phase === 'playing' && next.currentSeat === humanSeat) {
+          return new Set(legalPlays(next, humanSeat).map((c) => c.id))
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return new Set<string>()
+  })()
 
   const showContinue =
     state.phase === 'trick_pause' ||
     state.phase === 'hand_result' ||
     state.phase === 'game_over'
 
-  /** Bid log stays through trump pick; seat Pass/number pills only while bidding */
-  const showBidLog =
-    state.phase === 'bidding' || state.phase === 'choose_trump'
+  /** Seat bid pills only while bidding; log itself stays up all hand */
   const showSeatBids = state.phase === 'bidding'
+  const inMatch = state.phase !== 'lobby'
+
+  const [bidLogOpen, setBidLogOpen] = useState(false)
+  const [resultsOpen, setResultsOpen] = useState(false)
+  const [compactUi, setCompactUi] = useState(false)
 
   // Click anywhere / Space / Enter to advance (no Continue button)
   useEffect(() => {
@@ -73,10 +107,9 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [showContinue, continuePlay, state.phase, state.completedTricks.length])
+  }, [showContinue, continuePlay])
 
-  // Watchdog: while a bot should act, keep kicking until a timer is running.
-  // Does not cancel an in-flight timer (kickBots is a no-op if one is queued).
+  // Watchdog: while a bot should act, ensure a bot step is queued (no-op if already).
   const kickBots = useGameStore((s) => s.kickBots)
   useEffect(() => {
     if (
@@ -92,24 +125,17 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     if (state.seats[seat].kind !== 'bot') return
 
     kickBots()
-    const id = window.setInterval(() => kickBots(), 700)
+    const id = window.setInterval(() => kickBots(), 900)
     return () => window.clearInterval(id)
-  }, [
-    state.phase,
-    state.currentSeat,
-    state.bidder,
-    state.currentTrick.length,
-    state.bids.length,
-    kickBots,
-  ])
+  }, [state.phase, state.currentSeat, state.bidder, kickBots])
 
   const onScreenContinue = (e: ReactMouseEvent) => {
     if (!showContinue) return
-    // Don't steal clicks from interactive controls
     const t = e.target as HTMLElement
+    // Hand cards handle continue+play themselves; don't double-fire continue
     if (
       t.closest(
-        'button, a, select, input, .hand-row, .south-bid-row, .bid-log, .icon-btn, .delay-select',
+        'button, a, select, input, .south-bid-row, .felt-float, .felt-panel, .icon-btn, .delay-select, .card',
       )
     ) {
       return
@@ -124,15 +150,16 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     const el = feltHostRef.current
     if (!el) return
     const measure = () => {
-      // client* ignores transforms/subpixel jitter; floor keeps square crisp
       const w = el.clientWidth
       const h = el.clientHeight
       const side = Math.max(0, Math.floor(Math.min(w, h)))
       setFeltSide(side)
+      const compact =
+        side < 620 || window.innerWidth < 640 || window.innerHeight < 680
+      setCompactUi(compact)
     }
     measure()
     const ro = new ResizeObserver(() => {
-      // rAF batches with layout so we measure after flex settles
       requestAnimationFrame(measure)
     })
     ro.observe(el)
@@ -185,7 +212,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
 
   return (
     <div
-      className={`table-screen ${showContinue ? 'can-continue' : ''}`}
+      className={`table-screen ${showContinue ? 'can-continue' : ''} ${compactUi ? 'compact-ui' : ''}`}
       onClick={onScreenContinue}
     >
       <header className="top-bar">
@@ -237,7 +264,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
 
       <div className="felt-host" ref={feltHostRef}>
         <div
-          className="felt"
+          className={`felt ${compactUi ? 'felt-compact' : ''}`}
           style={
             feltSide > 0
               ? ({
@@ -248,61 +275,133 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               : undefined
           }
         >
-          {/* Reserved corner slot — keeps layout stable when bid log toggles */}
-          <div className="bid-log-slot" aria-live="polite">
-            {showBidLog && (
-              <div className="bid-log bid-log-corner">
-                <div className="bid-log-title">
-                  {state.phase === 'bidding' ? 'Bidding' : 'Bids'}
-                </div>
-                <ul className="bid-log-list">
-                  {bidOrder(state.dealer).map((seat) => {
-                    const entry = state.bids.find((b) => b.seat === seat)
-                    const waiting =
-                      state.phase === 'bidding' &&
-                      state.currentSeat === seat &&
-                      !entry
-                    let text = '…'
-                    let kind = 'pending'
-                    if (entry) {
-                      if (entry.bid === null) {
-                        text = 'Pass'
-                        kind = 'pass'
-                      } else {
-                        text = String(entry.bid)
-                        kind =
-                          state.bidder === seat && state.highBid === entry.bid
-                            ? 'high'
-                            : 'bid'
-                      }
-                    } else if (waiting) {
-                      text = '…'
-                      kind = 'turn'
-                    }
-                    return (
-                      <li key={seat} className={`bid-log-item ${kind}`}>
-                        <span className="bid-log-name">
-                          {state.seats[seat].name}
-                          {seat === 0 ? ' (you)' : ''}
-                        </span>
-                        <span className="bid-log-value">{text}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-                {state.phase === 'bidding' && state.highBid !== null && (
-                  <p className="bid-log-hint">
-                    Must bid higher than {state.highBid}, or pass
-                  </p>
-                )}
-                {state.phase === 'bidding' && state.highBid === null && (
-                  <p className="bid-log-hint">Min bid 6 · or pass</p>
+          {/* Overlay toggles — absolute corners, never push table content */}
+          {inMatch && (
+            <>
+              <div className="felt-float bid-float">
+                <button
+                  type="button"
+                  className={`felt-panel-toggle ${bidLogOpen ? 'on' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setBidLogOpen((o) => !o)
+                  }}
+                  aria-expanded={bidLogOpen}
+                >
+                  <span className="felt-panel-toggle-label">
+                    {state.phase === 'bidding' ? 'Bidding' : 'Bids'}
+                    {state.highBid != null ? ` · ${state.highBid}` : ''}
+                  </span>
+                  <span className="felt-panel-chevron" aria-hidden>
+                    {bidLogOpen ? '▾' : '▸'}
+                  </span>
+                </button>
+                {bidLogOpen && (
+                  <div className="felt-panel bid-log-panel">
+                    <ul className="bid-log-list">
+                      {bidOrder(state.dealer).map((seat) => {
+                        const entry = state.bids.find((b) => b.seat === seat)
+                        const waiting =
+                          state.phase === 'bidding' &&
+                          state.currentSeat === seat &&
+                          !entry
+                        let text = '—'
+                        let kind = 'pending'
+                        if (entry) {
+                          if (entry.bid === null) {
+                            text = 'Pass'
+                            kind = 'pass'
+                          } else {
+                            text = String(entry.bid)
+                            kind =
+                              state.bidder === seat &&
+                              state.highBid === entry.bid
+                                ? 'high'
+                                : 'bid'
+                          }
+                        } else if (waiting) {
+                          text = '…'
+                          kind = 'turn'
+                        } else if (state.bids.length === 0) {
+                          text = '…'
+                          kind = 'pending'
+                        }
+                        const short = seat === 0 ? 'You' : SEAT_LETTER[seat]
+                        return (
+                          <li key={seat} className={`bid-log-item ${kind}`}>
+                            <span className="bid-log-name">{short}</span>
+                            <span className="bid-log-value">{text}</span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                    {state.phase === 'bidding' && state.highBid !== null && (
+                      <p className="bid-log-hint">
+                        Over {state.highBid} or pass
+                      </p>
+                    )}
+                    {state.phase === 'bidding' && state.highBid === null && (
+                      <p className="bid-log-hint">Min 6 · or pass</p>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* 3×3 table grid: seats + center; south zone spans full width */}
+              <div className="felt-float rounds-float">
+                <button
+                  type="button"
+                  className={`felt-panel-toggle ${resultsOpen ? 'on' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setResultsOpen((o) => !o)
+                  }}
+                  aria-expanded={resultsOpen}
+                >
+                  <span className="felt-panel-toggle-label">
+                    Rounds
+                    {state.handHistory.length > 0
+                      ? ` · ${state.handHistory.length}`
+                      : ''}
+                  </span>
+                  <span className="felt-panel-chevron" aria-hidden>
+                    {resultsOpen ? '▾' : '▸'}
+                  </span>
+                </button>
+                {resultsOpen && (
+                  <div className="felt-panel results-panel-felt">
+                    {state.handHistory.length === 0 ? (
+                      <p className="results-empty">No rounds yet</p>
+                    ) : (
+                      <ul className="results-list">
+                        {state.handHistory.map((h, i) => {
+                          const cols = formatRoundCols(h)
+                          return (
+                            <li
+                              key={i}
+                              className={`results-row ${h.made ? 'made' : 'set'}`}
+                            >
+                              <span className="results-col bid">{cols.bid}</span>
+                              <span className="results-sep" aria-hidden>
+                                |
+                              </span>
+                              <span className="results-col pts">{cols.pts}</span>
+                              <span className="results-sep" aria-hidden>
+                                |
+                              </span>
+                              <span className="results-col score">
+                                {cols.score}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           <div className="table-grid">
             <div className="grid-north">
               <SeatSlot
@@ -367,7 +466,16 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
             </div>
 
             <div className="grid-south">
-              {/* Bid chips / trump hint — above the play slot so play stays near You */}
+              {/* Always reserved height so playing a card doesn't shift the table */}
+              <div className="south-play-slot" aria-hidden={!playedBySeat(0)}>
+                {playedBySeat(0) ? (
+                  <div className="played-next-to south">
+                    <CardView card={playedBySeat(0)!} />
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Bid chips / status — directly above You (10px) */}
               <div className="south-bid-slot">
                 {state.phase === 'bidding' && humanTurn ? (
                   <div className="south-bid-row" role="group" aria-label="Your bid">
@@ -404,16 +512,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 ) : null}
               </div>
 
-              {/* Always reserved height so playing a card doesn't shift the table */}
-              <div className="south-play-slot" aria-hidden={!playedBySeat(0)}>
-                {playedBySeat(0) ? (
-                  <div className="played-next-to south">
-                    <CardView card={playedBySeat(0)!} />
-                  </div>
-                ) : null}
-              </div>
-
-              {/* You + hand = south “deck”; played card sits just above (like N/W/E) */}
+              {/* You + hand = south “deck” */}
               <div className="you-label">You</div>
 
               <div
@@ -422,34 +521,43 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   choosingTrump ? 'Tap a card to choose trump suit' : 'Your hand'
                 }
               >
-                {handGroups.map((group, gi) => (
-                  <div key={gi} className="hand-suit-group">
-                    {group.map((c) => {
-                      if (choosingTrump) {
+                <div className="hand-track">
+                  {handGroups.map((group, gi) => (
+                    <div key={gi} className="hand-suit-group">
+                      {group.map((c) => {
+                        if (choosingTrump) {
+                          return (
+                            <CardView
+                              key={c.id}
+                              card={c}
+                              selected
+                              onClick={() => pickTrump(c.suit)}
+                            />
+                          )
+                        }
+                        const canPlay = playableIds.has(c.id)
+                        const inPlayPhase =
+                          state.phase === 'playing' ||
+                          state.phase === 'trick_pause'
+                        const dimmed = inPlayPhase && !canPlay
                         return (
                           <CardView
                             key={c.id}
                             card={c}
-                            selected
-                            onClick={() => pickTrump(c.suit)}
+                            disabled={dimmed}
+                            onClick={
+                              canPlay
+                                ? () => play(c.id)
+                                : showContinue
+                                  ? () => continuePlay()
+                                  : undefined
+                            }
                           />
                         )
-                      }
-                      const canPlay =
-                        state.phase === 'playing' && playableIds.has(c.id)
-                      const dimmed =
-                        state.phase === 'playing' && !playableIds.has(c.id)
-                      return (
-                        <CardView
-                          key={c.id}
-                          card={c}
-                          disabled={dimmed}
-                          onClick={canPlay ? () => play(c.id) : undefined}
-                        />
-                      )
-                    })}
-                  </div>
-                ))}
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

@@ -95,6 +95,7 @@ export function createLobbyState(
     activeSeats: [0, 1, 2, 3],
     currentSeat: null,
     handResult: null,
+    handHistory: [],
     targetScore: DEFAULT_TARGET,
     seed,
     message: 'Ready to play',
@@ -650,11 +651,22 @@ function finishHand(state: GameState): GameState {
 
   const winner = matchWinner(result.scoresAfter, result.bidderTeam, state.targetScore)
 
+  const historyEntry = {
+    bidder,
+    bid,
+    made: result.made,
+    teamPointsTaken: result.teamPointsTaken,
+    teamScoreDelta: result.teamScoreDelta,
+    scoresAfter: result.scoresAfter,
+  }
+  const handHistory = [...state.handHistory, historyEntry]
+
   if (winner !== null) {
     return {
       ...state,
       scores: result.scoresAfter,
       handResult: result,
+      handHistory,
       phase: 'game_over',
       message:
         winner === 0
@@ -667,6 +679,7 @@ function finishHand(state: GameState): GameState {
     ...state,
     scores: result.scoresAfter,
     handResult: result,
+    handHistory,
     phase: 'hand_result',
     message: result.made
       ? `Bid ${bid} made — took ${result.teamPointsTaken[result.bidderTeam]}`

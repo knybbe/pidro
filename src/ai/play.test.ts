@@ -30,6 +30,7 @@ function baseState(overrides: Partial<GameState>): GameState {
     activeSeats: [0, 1, 2, 3],
     currentSeat: 2,
     handResult: null,
+    handHistory: [],
     targetScore: 62,
     seed: 1,
     message: '',
