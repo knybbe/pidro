@@ -168,6 +168,54 @@ describe('bidding', () => {
 })
 
 describe('play', () => {
+  it('last player with trumps still plays them out one by one', () => {
+    // Only seat 0 has trumps left; others empty. Seat 0 must lead each solo trick.
+    let s = startMatch(createLobbyState(1), { seed: 1 })
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+    s = chooseTrump(s, 1, 'H')
+    // Force solo endgame: only human has trumps
+    const trump = 'H' as Suit
+    const solo = [
+      makeCard('H', 'A'),
+      makeCard('H', 'K'),
+      makeCard('H', 'Q'),
+    ]
+    const hands = [
+      solo,
+      [makeCard('S', '9')],
+      [makeCard('D', '9')],
+      [makeCard('C', '9')],
+    ] as typeof s.hands
+    s = {
+      ...s,
+      trump,
+      hands,
+      activeSeats: [0],
+      coldRevealed: [false, false, false, false],
+      currentSeat: 0,
+      trickLeader: 0,
+      currentTrick: [],
+      completedTricks: [],
+      phase: 'playing',
+    }
+    // Play first solo card — must not end the hand yet
+    s = playCard(s, 0, solo[0].id)
+    expect(s.phase).toBe('trick_pause')
+    expect(trumpsInHand(s.hands[0], trump).length).toBe(2)
+    s = continueAfterTrick(s)
+    expect(s.phase).toBe('playing')
+    expect(s.currentSeat).toBe(0)
+    // Remaining two cards also play out
+    s = playCard(s, 0, s.hands[0].find((c) => c.rank === 'K')!.id)
+    expect(s.phase).toBe('trick_pause')
+    s = continueAfterTrick(s)
+    s = playCard(s, 0, s.hands[0][0].id)
+    expect(['trick_pause', 'hand_result', 'game_over']).toContain(s.phase)
+  })
+
   it('trick winner is highest trump', () => {
     const trump: Suit = 'H'
     const winner = trickWinner(

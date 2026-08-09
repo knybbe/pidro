@@ -43,10 +43,11 @@ export function RulesModal({ open, onClose }: Props) {
           <h3>Play</h3>
           <p>
             <strong>Only trumps are played.</strong> Highest trump wins the
-            trick. When you run out of trumps, remaining cards turn face-up and
-            you sit out. The Two’s point goes to whoever held it after the
-            discard. If a defender (opponent of the bidder) has only one trump,
-            they must play it on the first trick.
+            trick. When you run out of trumps you sit out; leftover cards turn
+            face-up when play would next reach you. The last player with trumps
+            still plays them out. Yellow dots mark cards taken in the refill
+            after trump is named. The Two’s point goes to whoever held it after
+            the discard.
           </p>
           <h3>Scoring</h3>
           <p>

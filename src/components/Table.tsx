@@ -59,6 +59,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     (state.phase === 'playing' && state.currentSeat === humanSeat)
 
   const handGroups = groupHand(state.hands[humanSeat], state.trump)
+  const purchasedSet = new Set(state.purchasedIds)
   const choosingTrump =
     state.phase === 'choose_trump' && state.bidder === humanSeat
 
@@ -83,10 +84,10 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     return new Set<string>()
   })()
 
-  const showContinue =
-    state.phase === 'trick_pause' ||
-    state.phase === 'hand_result' ||
-    state.phase === 'game_over'
+  /** Only trick pauses use click-anywhere / Space; hand/game end use the banner Deal button */
+  const showContinue = state.phase === 'trick_pause'
+  const showHandBanner =
+    state.phase === 'hand_result' || state.phase === 'game_over'
 
   /** Seat bid pills only while bidding; log itself stays up all hand */
   const showSeatBids = state.phase === 'bidding'
@@ -96,7 +97,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   const [resultsOpen, setResultsOpen] = useState(false)
   const [compactUi, setCompactUi] = useState(false)
 
-  // Click anywhere / Space / Enter to advance (no Continue button)
+  // Click anywhere / Space / Enter to advance after a trick
   useEffect(() => {
     if (!showContinue) return
     const onKey = (e: KeyboardEvent) => {
@@ -170,45 +171,39 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     }
   }, [])
 
-  const displayTrick =
-    state.currentTrick.length > 0
-      ? state.currentTrick
-      : state.completedTricks.length > 0 &&
-          (state.phase === 'hand_result' ||
-            state.phase === 'game_over' ||
-            state.phase === 'trick_pause')
-        ? state.completedTricks[state.completedTricks.length - 1]
-        : state.currentTrick
-
-  const playedBySeat = (seat: Seat): Card | null => {
-    const p = displayTrick.find((t) => t.seat === seat)
-    return p ? p.card : null
+  /** All cards this seat has played this hand (stay on table, stacked). */
+  const playedCardsBySeat = (seat: Seat): Card[] => {
+    const cards: Card[] = []
+    for (const trick of state.completedTricks) {
+      for (const p of trick) {
+        if (p.seat === seat) cards.push(p.card)
+      }
+    }
+    // Mid-trick plays are not yet in completedTricks
+    if (state.phase === 'playing') {
+      for (const p of state.currentTrick) {
+        if (p.seat === seat) cards.push(p.card)
+      }
+    }
+    return cards
   }
 
   const legal = state.phase === 'bidding' && humanTurn ? legalBids(state) : []
 
   const infoLine =
-    state.handResult &&
-    (state.phase === 'hand_result' || state.phase === 'game_over')
-      ? `${state.phase === 'game_over' ? 'Match over · ' : ''}${
-          state.handResult.made ? 'Bid made' : 'Set!'
-        } · Us ${fmtDelta(state.handResult.teamScoreDelta[0])} · Them ${fmtDelta(state.handResult.teamScoreDelta[1])}`
-      : state.phase === 'playing' ||
-          state.phase === 'trick_pause' ||
-          state.phase === 'hand_result' ||
-          state.phase === 'game_over'
-        ? `${state.message}${
-            state.phase === 'playing' ||
-            state.phase === 'trick_pause' ||
-            state.phase === 'hand_result' ||
-            state.phase === 'game_over'
-              ? ` · Points Us ${state.pointsTaken[0]} · Them ${state.pointsTaken[1]}`
-              : ''
-          }`
+    showHandBanner
+      ? '\u00a0'
+      : state.phase === 'playing' || state.phase === 'trick_pause'
+        ? `${state.message} · Points Us ${state.pointsTaken[0]} · Them ${state.pointsTaken[1]}`
         : state.message ||
           (!humanTurn && !showContinue && !choosingTrump
             ? 'Waiting for robots…'
             : '')
+
+  const lastHistory =
+    state.handHistory.length > 0
+      ? state.handHistory[state.handHistory.length - 1]
+      : null
 
   return (
     <div
@@ -413,7 +408,9 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 bidFresh={isLatestBid(state, 2)}
                 active={isActive(state, 2)}
                 position="north"
-                playedCard={playedBySeat(2)}
+                playedCards={playedCardsBySeat(2)}
+                coldRevealed={state.coldRevealed[2]}
+                purchasedIds={state.purchasedIds}
               />
             </div>
 
@@ -427,28 +424,129 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 bidFresh={isLatestBid(state, 1)}
                 active={isActive(state, 1)}
                 position="west"
-                playedCard={playedBySeat(1)}
+                playedCards={playedCardsBySeat(1)}
+                coldRevealed={state.coldRevealed[1]}
+                purchasedIds={state.purchasedIds}
               />
             </div>
 
             <div className="grid-center">
-              {state.trump && state.phase !== 'bidding' && (
-                <div className="trump-pill">
-                  <span
-                    className={`trump-badge ${
-                      state.trump === 'H' || state.trump === 'D' ? 'red' : 'black'
-                    }`}
-                  >
-                    {suitSymbol(state.trump)} {suitName(state.trump)}
-                  </span>
+              {showHandBanner && state.handResult && lastHistory ? (
+                <div
+                  className={`round-banner ${state.phase === 'game_over' ? 'game-over' : 'hand-end'}`}
+                  role="dialog"
+                  aria-label={
+                    state.phase === 'game_over' ? 'Match over' : 'Hand result'
+                  }
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {state.phase === 'game_over' ? (
+                    <>
+                      <h2 className="round-banner-title">Match over</h2>
+                      <p className="round-banner-sub">
+                        {state.message ||
+                          (state.scores[0] >= state.scores[1]
+                            ? 'You & North win!'
+                            : 'East & West win!')}
+                      </p>
+                      <p className="round-banner-sub">
+                        Us {state.scores[0]} · Them {state.scores[1]}
+                      </p>
+                      <ul className="round-banner-rounds">
+                        {state.handHistory.map((h, i) => {
+                          const cols = formatRoundCols(h)
+                          return (
+                            <li
+                              key={i}
+                              className={`results-row ${h.made ? 'made' : 'set'}`}
+                            >
+                              <span className="results-col bid">{cols.bid}</span>
+                              <span className="results-sep" aria-hidden>
+                                |
+                              </span>
+                              <span className="results-col pts">{cols.pts}</span>
+                              <span className="results-sep" aria-hidden>
+                                |
+                              </span>
+                              <span className="results-col score">
+                                {cols.score}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                      <div className="round-banner-actions">
+                        <button
+                          type="button"
+                          className="btn primary"
+                          onClick={() => continuePlay()}
+                        >
+                          Rematch
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={() => backToLobby()}
+                        >
+                          Lobby
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="round-banner-title">
+                        {state.handResult.made ? 'Bid made' : 'Set!'}
+                      </h2>
+                      <p className="round-banner-sub">
+                        {SEAT_LETTER[lastHistory.bidder]}
+                        {lastHistory.bid}
+                        {state.trump
+                          ? ` · ${suitSymbol(state.trump)} ${suitName(state.trump)}`
+                          : ''}
+                      </p>
+                      <div className="round-banner-stats">
+                        <div className="round-stat">
+                          <span className="round-stat-label">Points</span>
+                          <span className="round-stat-value">
+                            Us {state.handResult.teamPointsTaken[0]} · Them{' '}
+                            {state.handResult.teamPointsTaken[1]}
+                          </span>
+                        </div>
+                        <div className="round-stat">
+                          <span className="round-stat-label">Score</span>
+                          <span className="round-stat-value">
+                            Us {fmtDelta(state.handResult.teamScoreDelta[0])} ·
+                            Them {fmtDelta(state.handResult.teamScoreDelta[1])}
+                          </span>
+                        </div>
+                        <div className="round-stat">
+                          <span className="round-stat-label">Total</span>
+                          <span className="round-stat-value">
+                            Us {state.handResult.scoresAfter[0]} · Them{' '}
+                            {state.handResult.scoresAfter[1]}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="round-banner-actions">
+                        <button
+                          type="button"
+                          className="btn primary"
+                          onClick={() => continuePlay()}
+                        >
+                          Deal
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="dump-grid" aria-label="Discarded cards">
+                  <DumpPile cards={state.dumpPiles[2]} className="dump-n" />
+                  <DumpPile cards={state.dumpPiles[3]} className="dump-e" />
+                  <DumpPile cards={state.dumpPiles[1]} className="dump-w" />
+                  <DumpPile cards={state.dumpPiles[0]} className="dump-s" />
                 </div>
               )}
-              <div className="dump-grid" aria-label="Discarded cards">
-                <DumpPile cards={state.dumpPiles[2]} className="dump-n" />
-                <DumpPile cards={state.dumpPiles[3]} className="dump-e" />
-                <DumpPile cards={state.dumpPiles[1]} className="dump-w" />
-                <DumpPile cards={state.dumpPiles[0]} className="dump-s" />
-              </div>
             </div>
 
             <div className="grid-east">
@@ -461,18 +559,21 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                 bidFresh={isLatestBid(state, 3)}
                 active={isActive(state, 3)}
                 position="east"
-                playedCard={playedBySeat(3)}
+                playedCards={playedCardsBySeat(3)}
+                coldRevealed={state.coldRevealed[3]}
+                purchasedIds={state.purchasedIds}
               />
             </div>
 
             <div className="grid-south">
-              {/* Always reserved height so playing a card doesn't shift the table */}
-              <div className="south-play-slot" aria-hidden={!playedBySeat(0)}>
-                {playedBySeat(0) ? (
-                  <div className="played-next-to south">
-                    <CardView card={playedBySeat(0)!} />
-                  </div>
-                ) : null}
+              <div
+                className="south-play-slot"
+                aria-hidden={playedCardsBySeat(0).length === 0}
+              >
+                <PlayedStack
+                  cards={playedCardsBySeat(0)}
+                  position="south"
+                />
               </div>
 
               {/* Bid chips / status — directly above You (10px) */}
@@ -531,6 +632,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                               key={c.id}
                               card={c}
                               selected
+                              purchased={purchasedSet.has(c.id)}
                               onClick={() => pickTrump(c.suit)}
                             />
                           )
@@ -545,6 +647,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                             key={c.id}
                             card={c}
                             disabled={dimmed}
+                            purchased={purchasedSet.has(c.id)}
                             onClick={
                               canPlay
                                 ? () => play(c.id)
@@ -572,11 +675,6 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               ? 'Click anywhere or press Space / Enter to continue'
               : '\u00a0')}
         </p>
-        {state.phase === 'game_over' && (
-          <button type="button" className="btn ghost info-lobby" onClick={backToLobby}>
-            Lobby
-          </button>
-        )}
       </div>
     </div>
   )
@@ -624,6 +722,51 @@ function DumpPile({
   )
 }
 
+/** Max trumps played per seat in a hand — fixed footprint so stacks don't jump */
+const PLAYED_STACK_SLOTS = 6
+
+/**
+ * Played cards stay on the table.
+ * N/S: L→R fan, 40% overlap (60% of prior card visible); latest on top (z).
+ * E/W: vertical stack, 40% overlap (60% visible); first at top, latest at bottom.
+ * Footprint always reserves PLAYED_STACK_SLOTS so layout stays put.
+ */
+function PlayedStack({
+  cards,
+  position,
+}: {
+  cards: Card[]
+  position: 'north' | 'south' | 'west' | 'east'
+}) {
+  return (
+    <div
+      className={`played-stack ${position} ${cards.length === 0 ? 'empty' : ''}`}
+      style={{ ['--n' as string]: PLAYED_STACK_SLOTS } as CSSProperties}
+      aria-label={
+        cards.length === 0
+          ? undefined
+          : `${cards.length} card${cards.length === 1 ? '' : 's'} played`
+      }
+    >
+      {cards.map((c, i) => (
+        <div
+          key={`${c.id}-${i}`}
+          className="played-stack-card"
+          style={
+            {
+              // Latest card always on top of the pile
+              zIndex: i + 1,
+              ['--i' as string]: i,
+            } as CSSProperties
+          }
+        >
+          <CardView card={c} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SeatSlot({
   label,
   hand,
@@ -633,7 +776,9 @@ function SeatSlot({
   bidFresh,
   active,
   position,
-  playedCard,
+  playedCards,
+  coldRevealed,
+  purchasedIds,
 }: {
   label: string
   hand: Card[]
@@ -643,30 +788,38 @@ function SeatSlot({
   bidFresh: boolean
   active: boolean
   position: string
-  playedCard: Card | null
+  playedCards: Card[]
+  /** Face-up leftovers when play order would have reached this cold seat */
+  coldRevealed: boolean
+  purchasedIds: string[]
 }) {
   // Bidding / trump pick: always 9 face-down. Play: remaining hand.
-  // When a seat has no trumps left, any leftover non-trumps turn face-up.
+  // Leftover non-trumps turn face-up when coldRevealed (their would-be turn).
   const biddingLike = phase === 'bidding' || phase === 'choose_trump'
   const count = biddingLike ? Math.max(hand.length, 9) : hand.length
   const cold =
+    coldRevealed &&
     !biddingLike &&
     trump != null &&
     hand.length > 0 &&
     trumpsInHand(hand, trump).length === 0
   const faceCards = cold ? sortHand(hand, trump) : null
+  // Fixed fan footprint so decks don't jump as card count changes
+  const fanSlots = biddingLike ? 9 : 6
   const n = cold ? faceCards!.length : count
+  const renderN = cold ? faceCards!.length : Math.min(count, fanSlots)
+  const purchased = new Set(purchasedIds)
 
   const deck = (
     <div className={`seat-deck ${position}`}>
       <div className="seat-name">{label}</div>
       <div
         className={`seat-cards fan ${position}${cold ? ' face-up' : ''}`}
-        style={{ ['--n' as string]: Math.max(n, 1) } as CSSProperties}
+        style={{ ['--n' as string]: fanSlots } as CSSProperties}
         aria-label={
           cold
             ? `${n} cards remaining (no trumps)`
-            : `${n} cards`
+            : `${count} cards`
         }
       >
         {cold && faceCards
@@ -681,43 +834,71 @@ function SeatSlot({
                   } as CSSProperties
                 }
               >
-                <CardView card={c} small />
+                <CardView
+                  card={c}
+                  small
+                  purchased={purchased.has(c.id)}
+                />
               </div>
             ))
-          : Array.from({ length: n }).map((_, i) => (
-              <div
-                key={i}
-                className="card-back"
-                style={
-                  {
-                    zIndex: i,
-                    ['--i' as string]: i,
-                  } as CSSProperties
-                }
-              />
-            ))}
+          : Array.from({ length: renderN }).map((_, i) => {
+              // Face-down: mark purchase dots for known leftover ids (stable order)
+              const c = hand[i]
+              const isPurchased = c ? purchased.has(c.id) : false
+              return (
+                <div
+                  key={c?.id ?? i}
+                  className="seat-card-wrap"
+                  style={
+                    {
+                      zIndex: i,
+                      ['--i' as string]: i,
+                    } as CSSProperties
+                  }
+                >
+                  {c ? (
+                    <CardView
+                      card={c}
+                      faceDown
+                      small
+                      purchased={isPurchased}
+                    />
+                  ) : (
+                    <div className="card face-down card-sm" aria-hidden />
+                  )}
+                </div>
+              )
+            })}
       </div>
-      {bidStatus && (
+    </div>
+  )
+
+  // Fixed-size slot so bid pills never shift E/W (or N) layout
+  const callout = (
+    <div className={`seat-callout-slot ${position}`} aria-hidden={!bidStatus}>
+      {bidStatus ? (
         <div
           className={`seat-bid-callout ${position} ${bidFresh ? 'fresh' : ''} ${bidStatus === 'Pass' ? 'pass' : ''} ${bidStatus === '…' ? 'waiting' : ''}`}
         >
           {bidStatus}
         </div>
-      )}
+      ) : null}
     </div>
   )
 
   const played = (
-    <div className={`played-next-to ${position}`}>
-      {playedCard ? <CardView card={playedCard} /> : null}
-    </div>
+    <PlayedStack
+      cards={playedCards}
+      position={position as 'north' | 'south' | 'west' | 'east'}
+    />
   )
 
-  // West: deck | played · East: played | deck · North: deck above played
+  // West: deck | callout | played · East: played | callout | deck · North: deck, callout, played
   if (position === 'west') {
     return (
       <div className={`seat-slot west ${active ? 'turn' : ''}`}>
         {deck}
+        {callout}
         {played}
       </div>
     )
@@ -726,6 +907,7 @@ function SeatSlot({
     return (
       <div className={`seat-slot east ${active ? 'turn' : ''}`}>
         {played}
+        {callout}
         {deck}
       </div>
     )
@@ -733,6 +915,7 @@ function SeatSlot({
   return (
     <div className={`seat-slot north ${active ? 'turn' : ''}`}>
       {deck}
+      {callout}
       {played}
     </div>
   )
@@ -771,18 +954,11 @@ function seatLabel(
   state: ReturnType<typeof useGameStore.getState>['state'],
   seat: Seat,
 ) {
-  const turn =
-    state.currentSeat === seat ||
-    (state.phase === 'choose_trump' && state.bidder === seat)
+  // Turn is shown with color only (.seat-slot.turn) — no ● (avoids width jump)
   const seatCfg = state.seats[seat]
-  let name: string
-  if (seatCfg.kind === 'human') {
-    name = 'You'
-  } else {
-    const d = seatCfg.difficulty ?? 'medium'
-    name = d.charAt(0).toUpperCase() + d.slice(1)
-  }
-  return `${name}${turn ? ' ●' : ''}`
+  if (seatCfg.kind === 'human') return 'You'
+  const d = seatCfg.difficulty ?? 'medium'
+  return d.charAt(0).toUpperCase() + d.slice(1)
 }
 
 function isActive(

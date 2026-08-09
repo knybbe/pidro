@@ -112,6 +112,16 @@ export interface GameState {
   pointsTaken: [number, number]
   /** Seats still active (have trumps) */
   activeSeats: Seat[]
+  /**
+   * Seats whose leftover non-trumps may be shown face-up.
+   * Set when play order would next reach that seat after they ran out of trumps.
+   */
+  coldRevealed: [boolean, boolean, boolean, boolean]
+  /**
+   * Card ids received from the stock refill / dealer purchase after trump.
+   * UI shows a yellow mark until the card is played (or revealed face-up).
+   */
+  purchasedIds: string[]
   currentSeat: Seat | null
   handResult: HandResult | null
   /** Finished hands this match (round score sheet) */

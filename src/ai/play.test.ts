@@ -31,6 +31,8 @@ function baseState(overrides: Partial<GameState>): GameState {
     currentSeat: 2,
     handResult: null,
     handHistory: [],
+    coldRevealed: [false, false, false, false],
+    purchasedIds: [],
     targetScore: 62,
     seed: 1,
     message: '',

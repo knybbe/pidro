@@ -93,6 +93,8 @@ export function createLobbyState(
     completedTricks: [],
     pointsTaken: [0, 0],
     activeSeats: [0, 1, 2, 3],
+    coldRevealed: [false, false, false, false],
+    purchasedIds: [],
     currentSeat: null,
     handResult: null,
     handHistory: [],
@@ -150,6 +152,8 @@ export function dealHand(state: GameState, dealer: Seat): GameState {
     completedTricks: [],
     pointsTaken: [0, 0],
     activeSeats: [0, 1, 2, 3],
+    coldRevealed: [false, false, false, false],
+    purchasedIds: [],
     currentSeat: nextSeat(dealer),
     handResult: null,
     message: 'Bidding — min 6, max 14',
@@ -288,22 +292,32 @@ export function performDiscardAndRefill(state: GameState): GameState {
     hands[s] = trumps
   }
 
+  // Track cards drawn from stock (purchase / refill) for UI markers
+  const purchasedIds: string[] = []
+
   // 2. Non-dealers refill from stock (order: left of dealer first)
   let s = nextSeat(state.dealer)
   for (let i = 0; i < 3; i++) {
     while (hands[s].length < HAND_SIZE_AFTER_DISCARD && stock.length > 0) {
-      hands[s].push(stock.shift()!)
+      const drawn = stock.shift()!
+      hands[s].push(drawn)
+      purchasedIds.push(drawn.id)
     }
     s = nextSeat(s)
   }
 
   // 3. Dealer takes remaining stock and discards to 6
   const dealer = state.dealer
-  hands[dealer] = [...hands[dealer], ...stock]
+  const dealerStock = [...stock]
+  hands[dealer] = [...hands[dealer], ...dealerStock]
   stock = []
   const dealerResult = discardDownToSix(hands[dealer], trump)
   hands[dealer] = dealerResult.keep
   dumpPiles[dealer].push(...dealerResult.discarded)
+  const keptIds = new Set(dealerResult.keep.map((c) => c.id))
+  for (const c of dealerStock) {
+    if (keptIds.has(c.id)) purchasedIds.push(c.id)
+  }
 
   // Low holder: who holds trump 2 after discard
   let lowHolder: Seat | null = null
@@ -354,6 +368,14 @@ export function performDiscardAndRefill(state: GameState): GameState {
     })
   }
 
+  // Seats that never had trumps after discard: reveal when play order first reaches them
+  const coldRevealed = ([0, 1, 2, 3] as Seat[]).map(() => false) as [
+    boolean,
+    boolean,
+    boolean,
+    boolean,
+  ]
+
   return {
     ...state,
     hands,
@@ -362,6 +384,8 @@ export function performDiscardAndRefill(state: GameState): GameState {
     lowHolder,
     pointsTaken,
     activeSeats,
+    coldRevealed,
+    purchasedIds,
     phase: 'playing',
     currentSeat: leader,
     trickLeader: leader,
@@ -369,6 +393,56 @@ export function performDiscardAndRefill(state: GameState): GameState {
     completedTricks: [],
     message: `Play — ${actorPhrase(state.seats[leader].name, 'leads')}`,
   }
+}
+
+/**
+ * Mark cold seats face-up when clockwise play order would have reached them
+ * (between `from` exclusive and `to` inclusive, or just `to` if same).
+ */
+function revealColdAlongPath(
+  from: Seat,
+  to: Seat | null,
+  hands: GameState['hands'],
+  trump: Suit,
+  coldRevealed: [boolean, boolean, boolean, boolean],
+  includeTo: boolean,
+): [boolean, boolean, boolean, boolean] {
+  const next = [...coldRevealed] as [boolean, boolean, boolean, boolean]
+  if (to === null) return next
+  let s = nextSeat(from)
+  for (let i = 0; i < 4; i++) {
+    if (s === to) {
+      if (includeTo && trumpsInHand(hands[s], trump).length === 0) {
+        next[s] = true
+      }
+      break
+    }
+    if (trumpsInHand(hands[s], trump).length === 0) {
+      next[s] = true
+    }
+    s = nextSeat(s)
+  }
+  return next
+}
+
+/** Drop purchase markers for cards no longer hidden in a seat's hand. */
+function prunePurchased(
+  purchasedIds: string[],
+  hands: GameState['hands'],
+  coldRevealed: [boolean, boolean, boolean, boolean],
+  trump: Suit | null,
+): string[] {
+  const stillHidden = new Set<string>()
+  for (let seat = 0; seat < 4; seat++) {
+    // Face-up cold hands are "displayed" — clear purchase marks for those cards
+    if (coldRevealed[seat as Seat] && trump) {
+      continue
+    }
+    for (const c of hands[seat as Seat]) {
+      stillHidden.add(c.id)
+    }
+  }
+  return purchasedIds.filter((id) => stillHidden.has(id))
 }
 
 function discardDownToSix(
@@ -461,12 +535,28 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
       !playedSeats.has(s) && trumpsInHand(hands[s], trump).length > 0,
   )
 
+  // Purchase marks drop when card is played
+  let purchasedIds = state.purchasedIds.filter((id) => id !== cardId)
+
   if (remaining.length > 0) {
+    const nextSeatToPlay = remaining[0]
+    // Reveal cold hands when play order would reach them (between us and next)
+    let coldRevealed = revealColdAlongPath(
+      seat,
+      nextSeatToPlay,
+      hands,
+      trump,
+      state.coldRevealed,
+      false,
+    )
+    purchasedIds = prunePurchased(purchasedIds, hands, coldRevealed, trump)
     return {
       ...state,
       hands,
       currentTrick,
-      currentSeat: remaining[0],
+      currentSeat: nextSeatToPlay,
+      coldRevealed,
+      purchasedIds,
       message: `${actorPhrase(state.seats[seat].name, 'plays')} ${card.rank}${card.suit}`,
     }
   }
@@ -490,24 +580,22 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
 
   // If winner has no trumps left, lead passes to next active clockwise
   let nextLeader: Seat | null = winner
+  let coldRevealed = [...state.coldRevealed] as [
+    boolean,
+    boolean,
+    boolean,
+    boolean,
+  ]
   if (!activeSeats.includes(winner)) {
+    // Winner would have led next but is cold — reveal leftovers now
+    coldRevealed[winner] = true
     nextLeader = nextActiveFrom(winner, activeSeats)
   }
 
-  // Only one player left with trumps → they take remaining point cards on trumps
-  if (activeSeats.length === 1) {
-    const last = activeSeats[0]
-    for (const c of trumpsInHand(hands[last], trump)) {
-      if (c.rank === '2') continue
-      pointsTaken[teamOf(last)] += cardPoints(c, trump)
-    }
-    // Clear remaining trumps
-    hands[last] = hands[last].filter((c) => !isTrump(c, trump))
-    activeSeats = []
-    nextLeader = null
-  }
+  // Solo last player: still play out remaining trumps one trick at a time
+  // (do not auto-scoop remaining cards).
 
-  // Hand over when no active seats / no trumps left
+  // Hand over when nobody has trumps left
   const handOver =
     activeSeats.length === 0 ||
     ([0, 1, 2, 3] as Seat[]).every(
@@ -515,7 +603,10 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     )
 
   if (handOver) {
-    // Keep the last trick visible on the table until the player continues
+    const allCold = ([0, 1, 2, 3] as Seat[]).map(
+      (s) =>
+        coldRevealed[s] || trumpsInHand(hands[s], trump).length === 0,
+    ) as [boolean, boolean, boolean, boolean]
     return finishHand({
       ...state,
       hands,
@@ -523,10 +614,14 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
       completedTricks,
       pointsTaken,
       activeSeats: [],
+      coldRevealed: allCold,
+      purchasedIds: prunePurchased(purchasedIds, hands, allCold, trump),
       currentSeat: null,
       trickLeader: null,
     })
   }
+
+  purchasedIds = prunePurchased(purchasedIds, hands, coldRevealed, trump)
 
   // Pause so every completed trick stays visible until Continue
   return {
@@ -536,7 +631,9 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     completedTricks,
     pointsTaken,
     activeSeats,
+    coldRevealed,
     trickLeader: nextLeader,
+    purchasedIds,
     currentSeat: null,
     phase: 'trick_pause',
     message: `${actorPhrase(state.seats[winner].name, 'wins')} the trick`,
@@ -576,6 +673,35 @@ export function continueAfterTrick(state: GameState): GameState {
     throw new Error('No active leader after trick')
   }
 
+  // Reveal cold seats that play order passes when going to the new leader
+  // (from last player of previous trick toward the leader).
+  const lastPlayer =
+    state.currentTrick.length > 0
+      ? state.currentTrick[state.currentTrick.length - 1].seat
+      : state.trickLeader ?? leader
+  let coldRevealed = revealColdAlongPath(
+    lastPlayer,
+    leader,
+    state.hands,
+    trump,
+    state.coldRevealed,
+    false,
+  )
+  // Leader themselves with no trumps can't lead — already handled above.
+  // If someone is cold and would be "up" as first skipped from leader around:
+  // mid-trick path handles that. On lead, reveal cold seats with no cards to play
+  // that sit between previous last player and leader was done; also reveal a seat
+  // that has no trumps if they are the would-be first seat after leader with no trumps
+  // when only checking path... When a cold seat would be the sole "next" after leader
+  // plays, reveal happens in playCard.
+
+  const purchasedIds = prunePurchased(
+    state.purchasedIds,
+    state.hands,
+    coldRevealed,
+    trump,
+  )
+
   return {
     ...state,
     phase: 'playing',
@@ -584,6 +710,8 @@ export function continueAfterTrick(state: GameState): GameState {
     currentSeat: leader,
     trickLeader: leader,
     activeSeats: active,
+    coldRevealed,
+    purchasedIds,
     message: actorPhrase(state.seats[leader].name, 'leads'),
   }
 }
