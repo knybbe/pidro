@@ -286,14 +286,14 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   ['--felt-side' as string]: `${feltSide}px`,
                   ['--ui-scale' as string]: String(uiScale),
                   // Primary card sizes (played / seat / hand / dump)
-                  ['--play-cw' as string]: `${(3.4 * uiScale).toFixed(3)}rem`,
-                  ['--play-ch' as string]: `${(4.8 * uiScale).toFixed(3)}rem`,
-                  ['--seat-cw' as string]: `${(2.4 * uiScale).toFixed(3)}rem`,
-                  ['--seat-ch' as string]: `${(3.35 * uiScale).toFixed(3)}rem`,
-                  ['--hand-cw' as string]: `${(2.75 * uiScale).toFixed(3)}rem`,
-                  ['--hand-ch' as string]: `${(3.85 * uiScale).toFixed(3)}rem`,
-                  ['--dump-cw' as string]: `${(1.85 * uiScale).toFixed(3)}rem`,
-                  ['--dump-ch' as string]: `${(2.55 * uiScale).toFixed(3)}rem`,
+                  ['--play-cw' as string]: `${(3.85 * uiScale).toFixed(3)}rem`,
+                  ['--play-ch' as string]: `${(5.4 * uiScale).toFixed(3)}rem`,
+                  ['--seat-cw' as string]: `${(2.7 * uiScale).toFixed(3)}rem`,
+                  ['--seat-ch' as string]: `${(3.8 * uiScale).toFixed(3)}rem`,
+                  ['--hand-cw' as string]: `${(3.15 * uiScale).toFixed(3)}rem`,
+                  ['--hand-ch' as string]: `${(4.4 * uiScale).toFixed(3)}rem`,
+                  ['--dump-cw' as string]: `${(2.1 * uiScale).toFixed(3)}rem`,
+                  ['--dump-ch' as string]: `${(2.95 * uiScale).toFixed(3)}rem`,
                 } as CSSProperties)
               : undefined
           }
@@ -457,138 +457,28 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
             </div>
 
             <div className="grid-center">
-              {showHandBanner && state.handResult && lastHistory ? (
-                <div
-                  className={`round-banner ${state.phase === 'game_over' ? 'game-over' : 'hand-end'}`}
-                  role="dialog"
-                  aria-label={
-                    state.phase === 'game_over' ? 'Match over' : 'Hand result'
-                  }
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {state.phase === 'game_over' ? (
-                    <>
-                      <h2 className="round-banner-title">Match over</h2>
-                      <p className="round-banner-sub">
-                        {state.message ||
-                          (state.scores[0] >= state.scores[1]
-                            ? 'You & North win!'
-                            : 'East & West win!')}
-                      </p>
-                      <p className="round-banner-sub">
-                        Us {state.scores[0]} · Them {state.scores[1]}
-                      </p>
-                      <ul className="round-banner-rounds">
-                        {state.handHistory.map((h, i) => {
-                          const cols = formatRoundCols(h)
-                          return (
-                            <li
-                              key={i}
-                              className={`results-row ${h.made ? 'made' : 'set'}`}
-                            >
-                              <span className="results-col bid">{cols.bid}</span>
-                              <span className="results-sep" aria-hidden>
-                                |
-                              </span>
-                              <span className="results-col pts">{cols.pts}</span>
-                              <span className="results-sep" aria-hidden>
-                                |
-                              </span>
-                              <span className="results-col score">
-                                {cols.score}
-                              </span>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                      <div className="round-banner-actions">
-                        <button
-                          type="button"
-                          className="btn primary"
-                          onClick={() => continuePlay()}
-                        >
-                          Rematch
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          onClick={() => backToLobby()}
-                        >
-                          Lobby
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="round-banner-title">
-                        {state.handResult.made ? 'Bid made' : 'Set!'}
-                      </h2>
-                      <p className="round-banner-sub">
-                        {SEAT_LETTER[lastHistory.bidder]}
-                        {lastHistory.bid}
-                        {state.trump
-                          ? ` · ${suitSymbol(state.trump)} ${suitName(state.trump)}`
-                          : ''}
-                      </p>
-                      <div className="round-banner-stats">
-                        <div className="round-stat">
-                          <span className="round-stat-label">Points</span>
-                          <span className="round-stat-value">
-                            Us {state.handResult.teamPointsTaken[0]} · Them{' '}
-                            {state.handResult.teamPointsTaken[1]}
-                          </span>
-                        </div>
-                        <div className="round-stat">
-                          <span className="round-stat-label">Score</span>
-                          <span className="round-stat-value">
-                            Us {fmtDelta(state.handResult.teamScoreDelta[0])} ·
-                            Them {fmtDelta(state.handResult.teamScoreDelta[1])}
-                          </span>
-                        </div>
-                        <div className="round-stat">
-                          <span className="round-stat-label">Total</span>
-                          <span className="round-stat-value">
-                            Us {state.handResult.scoresAfter[0]} · Them{' '}
-                            {state.handResult.scoresAfter[1]}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="round-banner-actions">
-                        <button
-                          type="button"
-                          className="btn primary"
-                          onClick={() => continuePlay()}
-                        >
-                          Deal
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="dump-diamond" aria-label="Discarded cards">
-                  <DumpPile
-                    cards={state.dumpPiles[2]}
-                    className="dump-n"
-                    seatLabel="N"
-                  />
-                  <DumpPile
-                    cards={state.dumpPiles[1]}
-                    className="dump-w"
-                    seatLabel="W"
-                  />
-                  <DumpPile
-                    cards={state.dumpPiles[3]}
-                    className="dump-e"
-                    seatLabel="E"
-                  />
-                  <DumpPile
-                    cards={state.dumpPiles[0]}
-                    className="dump-s"
-                    seatLabel="You"
-                  />
-                </div>
-              )}
+              <div className="dump-diamond" aria-label="Discarded cards">
+                <DumpPile
+                  cards={state.dumpPiles[2]}
+                  className="dump-n"
+                  seatLabel="N"
+                />
+                <DumpPile
+                  cards={state.dumpPiles[1]}
+                  className="dump-w"
+                  seatLabel="W"
+                />
+                <DumpPile
+                  cards={state.dumpPiles[3]}
+                  className="dump-e"
+                  seatLabel="E"
+                />
+                <DumpPile
+                  cards={state.dumpPiles[0]}
+                  className="dump-s"
+                  seatLabel="You"
+                />
+              </div>
             </div>
 
             <div className="grid-east">
@@ -607,7 +497,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
             </div>
 
             <div className="grid-south">
-              {/* Fixed play fan (always reserved) */}
+              {/* Fixed play fan & bid overlay (same height, 0 extra reserved flow height) */}
               <div className="south-play-gutter">
                 <div
                   className="south-play-slot"
@@ -618,58 +508,57 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                     position="south"
                   />
                 </div>
-              </div>
 
-              {/* Fixed bid strip (always reserved height — never absolute) */}
-              <div
-                className="south-bid-slot"
-                aria-hidden={
-                  !(
-                    (state.phase === 'bidding' && humanTurn) ||
-                    (state.phase === 'bidding' &&
-                      bidStatusFor(state, 0) &&
-                      bidStatusFor(state, 0) !== '…') ||
-                    choosingTrump
-                  )
-                }
-              >
-                {state.phase === 'bidding' && humanTurn ? (
-                  <div
-                    className="south-bid-row"
-                    role="group"
-                    aria-label="Your bid"
-                  >
-                    {canPass(state) && (
-                      <button
-                        type="button"
-                        className="south-bid-chip pass"
-                        onClick={() => bid(null)}
-                      >
-                        Pass
-                      </button>
-                    )}
-                    {legal.map((b) => (
-                      <button
-                        key={b}
-                        type="button"
-                        className="south-bid-chip"
-                        onClick={() => bid(b)}
-                      >
-                        {b}
-                      </button>
-                    ))}
-                  </div>
-                ) : state.phase === 'bidding' &&
-                  bidStatusFor(state, 0) &&
-                  bidStatusFor(state, 0) !== '…' ? (
-                  <div
-                    className={`seat-bid-callout south ${isLatestBid(state, 0) ? 'fresh' : ''} ${bidStatusFor(state, 0) === 'Pass' ? 'pass' : ''}`}
-                  >
-                    {bidStatusFor(state, 0)}
-                  </div>
-                ) : choosingTrump ? (
-                  <p className="trump-hint">Tap a card to set trump</p>
-                ) : null}
+                <div
+                  className="south-bid-slot"
+                  aria-hidden={
+                    !(
+                      (state.phase === 'bidding' && humanTurn) ||
+                      (state.phase === 'bidding' &&
+                        bidStatusFor(state, 0) &&
+                        bidStatusFor(state, 0) !== '…') ||
+                      choosingTrump
+                    )
+                  }
+                >
+                  {state.phase === 'bidding' && humanTurn ? (
+                    <div
+                      className="south-bid-row"
+                      role="group"
+                      aria-label="Your bid"
+                    >
+                      {canPass(state) && (
+                        <button
+                          type="button"
+                          className="south-bid-chip pass"
+                          onClick={() => bid(null)}
+                        >
+                          Pass
+                        </button>
+                      )}
+                      {legal.map((b) => (
+                        <button
+                          key={b}
+                          type="button"
+                          className="south-bid-chip"
+                          onClick={() => bid(b)}
+                        >
+                          {b}
+                        </button>
+                      ))}
+                    </div>
+                  ) : state.phase === 'bidding' &&
+                    bidStatusFor(state, 0) &&
+                    bidStatusFor(state, 0) !== '…' ? (
+                    <div
+                      className={`seat-bid-callout south ${isLatestBid(state, 0) ? 'fresh' : ''} ${bidStatusFor(state, 0) === 'Pass' ? 'pass' : ''}`}
+                    >
+                      {bidStatusFor(state, 0)}
+                    </div>
+                  ) : choosingTrump ? (
+                    <p className="trump-hint">Tap a card to set trump</p>
+                  ) : null}
+                </div>
               </div>
 
               {/* You + hand = south “deck” (label 10px above cards like robots) */}
@@ -723,6 +612,117 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               </div>
             </div>
           </div>
+
+          {/* Result Banner — direct child of .felt, topmost element always, 80% of board width & height */}
+          {showHandBanner && state.handResult && lastHistory && (
+            <div
+              className={`round-banner ${state.phase === 'game_over' ? 'game-over' : 'hand-end'}`}
+              role="dialog"
+              aria-label={
+                state.phase === 'game_over' ? 'Match over' : 'Hand result'
+              }
+              onClick={(e) => e.stopPropagation()}
+            >
+              {state.phase === 'game_over' ? (
+                <>
+                  <h2 className="round-banner-title">Match over</h2>
+                  <p className="round-banner-sub">
+                    {state.message ||
+                      (state.scores[0] >= state.scores[1]
+                        ? 'You & North win!'
+                        : 'East & West win!')}
+                  </p>
+                  <p className="round-banner-sub">
+                    Us {state.scores[0]} · Them {state.scores[1]}
+                  </p>
+                  <ul className="round-banner-rounds">
+                    {state.handHistory.map((h, i) => {
+                      const cols = formatRoundCols(h)
+                      return (
+                        <li
+                          key={i}
+                          className={`results-row ${h.made ? 'made' : 'set'}`}
+                        >
+                          <span className="results-col bid">{cols.bid}</span>
+                          <span className="results-sep" aria-hidden>
+                            |
+                          </span>
+                          <span className="results-col pts">{cols.pts}</span>
+                          <span className="results-sep" aria-hidden>
+                            |
+                          </span>
+                          <span className="results-col score">
+                            {cols.score}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  <div className="round-banner-actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => continuePlay()}
+                    >
+                      Rematch
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => backToLobby()}
+                    >
+                      Lobby
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="round-banner-title">
+                    {state.handResult.made ? 'Bid made' : 'Set!'}
+                  </h2>
+                  <p className="round-banner-sub">
+                    {SEAT_LETTER[lastHistory.bidder]}
+                    {lastHistory.bid}
+                    {state.trump
+                      ? ` · ${suitSymbol(state.trump)} ${suitName(state.trump)}`
+                      : ''}
+                  </p>
+                  <div className="round-banner-stats">
+                    <div className="round-stat">
+                      <span className="round-stat-label">Points</span>
+                      <span className="round-stat-value">
+                        Us {state.handResult.teamPointsTaken[0]} · Them{' '}
+                        {state.handResult.teamPointsTaken[1]}
+                      </span>
+                    </div>
+                    <div className="round-stat">
+                      <span className="round-stat-label">Score</span>
+                      <span className="round-stat-value">
+                        Us {fmtDelta(state.handResult.teamScoreDelta[0])} ·
+                        Them {fmtDelta(state.handResult.teamScoreDelta[1])}
+                      </span>
+                    </div>
+                    <div className="round-stat">
+                      <span className="round-stat-label">Total</span>
+                      <span className="round-stat-value">
+                        Us {state.handResult.scoresAfter[0]} · Them{' '}
+                        {state.handResult.scoresAfter[1]}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="round-banner-actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => continuePlay()}
+                    >
+                      Deal
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
