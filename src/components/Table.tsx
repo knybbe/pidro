@@ -230,6 +230,14 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   return (
     <div
       className={`table-screen ${showContinue ? 'can-continue' : ''} ${compactUi ? 'compact-ui' : ''}`}
+      style={
+        feltSide > 0
+          ? ({
+              ['--felt-side' as string]: `${feltSide}px`,
+              ['--ui-scale' as string]: String(uiScale),
+            } as CSSProperties)
+          : undefined
+      }
       onClick={onScreenContinue}
     >
       <header className="top-bar">
