@@ -150,7 +150,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     // Hand cards handle continue+play themselves; don't double-fire continue
     if (
       t.closest(
-        'button, a, select, input, .south-bid-row, .felt-float, .felt-panel, .icon-btn, .delay-select, .card',
+        'button, a, select, input, .south-bid-row, .table-menu-bar, .menu-widget, .felt-float, .felt-panel, .icon-btn, .delay-select, .card',
       )
     ) {
       return
@@ -290,6 +290,132 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
         </div>
       </header>
 
+      {inMatch && (
+        <div className="table-menu-bar">
+          <div className="menu-widget bid-menu-widget">
+            <button
+              type="button"
+              className={`felt-panel-toggle ${bidLogOpen ? 'on' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                setBidLogOpen((o) => !o)
+              }}
+              aria-expanded={bidLogOpen}
+            >
+              <span className="felt-panel-toggle-label">
+                {state.phase === 'bidding' ? 'Bidding' : 'Bids'}
+                {state.highBid != null ? ` · ${state.highBid}` : ''}
+              </span>
+              <span className="felt-panel-chevron" aria-hidden>
+                {bidLogOpen ? '▾' : '▸'}
+              </span>
+            </button>
+            {bidLogOpen && (
+              <div className="felt-panel bid-log-panel">
+                <ul className="bid-log-list">
+                  {bidOrder(state.dealer).map((seat) => {
+                    const entry = state.bids.find((b) => b.seat === seat)
+                    const waiting =
+                      state.phase === 'bidding' &&
+                      state.currentSeat === seat &&
+                      !entry
+                    let text = '—'
+                    let kind = 'pending'
+                    if (entry) {
+                      if (entry.bid === null) {
+                        text = 'Pass'
+                        kind = 'pass'
+                      } else {
+                        text = String(entry.bid)
+                        kind =
+                          state.bidder === seat &&
+                          state.highBid === entry.bid
+                            ? 'high'
+                            : 'bid'
+                      }
+                    } else if (waiting) {
+                      text = '…'
+                      kind = 'turn'
+                    } else if (state.bids.length === 0) {
+                      text = '…'
+                      kind = 'pending'
+                    }
+                    const short = seat === 0 ? 'You' : SEAT_LETTER[seat]
+                    return (
+                      <li key={seat} className={`bid-log-item ${kind}`}>
+                        <span className="bid-log-name">{short}</span>
+                        <span className="bid-log-value">{text}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {state.phase === 'bidding' && state.highBid !== null && (
+                  <p className="bid-log-hint">
+                    Over {state.highBid} or pass
+                  </p>
+                )}
+                {state.phase === 'bidding' && state.highBid === null && (
+                  <p className="bid-log-hint">Min 6 · or pass</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="menu-widget rounds-menu-widget">
+            <button
+              type="button"
+              className={`felt-panel-toggle ${resultsOpen ? 'on' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                setResultsOpen((o) => !o)
+              }}
+              aria-expanded={resultsOpen}
+            >
+              <span className="felt-panel-toggle-label">
+                Rounds
+                {state.handHistory.length > 0
+                  ? ` · ${state.handHistory.length}`
+                  : ''}
+              </span>
+              <span className="felt-panel-chevron" aria-hidden>
+                {resultsOpen ? '▾' : '▸'}
+              </span>
+            </button>
+            {resultsOpen && (
+              <div className="felt-panel results-panel-felt">
+                {state.handHistory.length === 0 ? (
+                  <p className="results-empty">No rounds yet</p>
+                ) : (
+                  <ul className="results-list">
+                    {state.handHistory.map((h, i) => {
+                      const cols = formatRoundCols(h)
+                      return (
+                        <li
+                          key={i}
+                          className={`results-row ${h.made ? 'made' : 'set'}`}
+                        >
+                          <span className="results-col bid">{cols.bid}</span>
+                          <span className="results-sep" aria-hidden>
+                            |
+                          </span>
+                          <span className="results-col pts">{cols.pts}</span>
+                          <span className="results-sep" aria-hidden>
+                            |
+                          </span>
+                          <span className="results-col score">
+                            {cols.score}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="felt-host" ref={feltHostRef}>
         <div
           className={`felt ${compactUi ? 'felt-compact' : ''}`}
@@ -313,132 +439,6 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               : undefined
           }
         >
-          {/* Overlay toggles — absolute corners, never push table content */}
-          {inMatch && (
-            <>
-              <div className="felt-float bid-float">
-                <button
-                  type="button"
-                  className={`felt-panel-toggle ${bidLogOpen ? 'on' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setBidLogOpen((o) => !o)
-                  }}
-                  aria-expanded={bidLogOpen}
-                >
-                  <span className="felt-panel-toggle-label">
-                    {state.phase === 'bidding' ? 'Bidding' : 'Bids'}
-                    {state.highBid != null ? ` · ${state.highBid}` : ''}
-                  </span>
-                  <span className="felt-panel-chevron" aria-hidden>
-                    {bidLogOpen ? '▾' : '▸'}
-                  </span>
-                </button>
-                {bidLogOpen && (
-                  <div className="felt-panel bid-log-panel">
-                    <ul className="bid-log-list">
-                      {bidOrder(state.dealer).map((seat) => {
-                        const entry = state.bids.find((b) => b.seat === seat)
-                        const waiting =
-                          state.phase === 'bidding' &&
-                          state.currentSeat === seat &&
-                          !entry
-                        let text = '—'
-                        let kind = 'pending'
-                        if (entry) {
-                          if (entry.bid === null) {
-                            text = 'Pass'
-                            kind = 'pass'
-                          } else {
-                            text = String(entry.bid)
-                            kind =
-                              state.bidder === seat &&
-                              state.highBid === entry.bid
-                                ? 'high'
-                                : 'bid'
-                          }
-                        } else if (waiting) {
-                          text = '…'
-                          kind = 'turn'
-                        } else if (state.bids.length === 0) {
-                          text = '…'
-                          kind = 'pending'
-                        }
-                        const short = seat === 0 ? 'You' : SEAT_LETTER[seat]
-                        return (
-                          <li key={seat} className={`bid-log-item ${kind}`}>
-                            <span className="bid-log-name">{short}</span>
-                            <span className="bid-log-value">{text}</span>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                    {state.phase === 'bidding' && state.highBid !== null && (
-                      <p className="bid-log-hint">
-                        Over {state.highBid} or pass
-                      </p>
-                    )}
-                    {state.phase === 'bidding' && state.highBid === null && (
-                      <p className="bid-log-hint">Min 6 · or pass</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="felt-float rounds-float">
-                <button
-                  type="button"
-                  className={`felt-panel-toggle ${resultsOpen ? 'on' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setResultsOpen((o) => !o)
-                  }}
-                  aria-expanded={resultsOpen}
-                >
-                  <span className="felt-panel-toggle-label">
-                    Rounds
-                    {state.handHistory.length > 0
-                      ? ` · ${state.handHistory.length}`
-                      : ''}
-                  </span>
-                  <span className="felt-panel-chevron" aria-hidden>
-                    {resultsOpen ? '▾' : '▸'}
-                  </span>
-                </button>
-                {resultsOpen && (
-                  <div className="felt-panel results-panel-felt">
-                    {state.handHistory.length === 0 ? (
-                      <p className="results-empty">No rounds yet</p>
-                    ) : (
-                      <ul className="results-list">
-                        {state.handHistory.map((h, i) => {
-                          const cols = formatRoundCols(h)
-                          return (
-                            <li
-                              key={i}
-                              className={`results-row ${h.made ? 'made' : 'set'}`}
-                            >
-                              <span className="results-col bid">{cols.bid}</span>
-                              <span className="results-sep" aria-hidden>
-                                |
-                              </span>
-                              <span className="results-col pts">{cols.pts}</span>
-                              <span className="results-sep" aria-hidden>
-                                |
-                              </span>
-                              <span className="results-col score">
-                                {cols.score}
-                              </span>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
 
           <div className="table-grid">
             <div className="grid-north">

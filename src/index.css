@@ -439,7 +439,72 @@ button {
   box-sizing: border-box;
 }
 
-/* Corner float widgets — overlay only; fixed width so toggle matches panel */
+/* Menu row (Bids and Rounds) between top-bar and playing field */
+.table-menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  max-width: var(--felt-side, 100%);
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.15rem 0 0.3rem;
+  position: relative;
+  z-index: 40;
+  flex-shrink: 0;
+}
+
+.menu-widget {
+  --float-w: 9.75rem;
+  position: relative;
+  width: var(--float-w);
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-widget.bid-menu-widget {
+  align-items: flex-start;
+}
+
+.menu-widget.rounds-menu-widget {
+  align-items: flex-end;
+}
+
+.menu-widget .felt-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  width: var(--float-w);
+  max-height: 12rem;
+}
+
+.menu-widget.rounds-menu-widget .felt-panel {
+  right: 0;
+  left: auto;
+}
+
+.compact-ui .table-menu-bar .menu-widget {
+  --float-w: 8.5rem;
+}
+
+.compact-ui .table-menu-bar .felt-panel-toggle {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.38rem;
+}
+
+.compact-ui .table-menu-bar .felt-panel {
+  max-height: 10rem;
+  padding: 0.15rem 0.28rem 0.28rem;
+}
+
+.compact-ui .table-menu-bar .results-row,
+.compact-ui .table-menu-bar .bid-log-item {
+  font-size: 0.7rem;
+}
+
+/* Corner float widgets legacy fallback */
 .felt-float {
   --float-w: 9.75rem;
   position: absolute;
