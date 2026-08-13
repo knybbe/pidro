@@ -195,8 +195,7 @@ function choosePlay(
   }
   const partnerWinning = winning.seat === partner
   const pointsInTrick = trick.reduce(
-    (sum, p) =>
-      sum + (p.card.rank === '2' ? 0 : cardPoints(p.card, trump)),
+    (sum, p) => sum + cardPoints(p.card, trump),
     0,
   )
   const pedroInTrick = trick.some((p) => isPedro(p.card, trump))

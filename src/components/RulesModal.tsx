@@ -56,8 +56,7 @@ export function RulesModal({ open, onClose }: Props) {
             trick. When you run out of trumps you sit out; leftover cards turn
             face-up when play would next reach you. The last player with trumps
             still plays them out. Yellow dots on your hand mark cards taken in
-            the Classic refill after trump is named. The Two’s point goes to
-            whoever held it after the discard.
+            the Classic refill after trump is named.
           </p>
           <h3>Scoring</h3>
           <p>

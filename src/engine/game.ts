@@ -376,11 +376,8 @@ export function performDiscardAndRefill(state: GameState): GameState {
     (seat) => trumpsInHand(hands[seat], trump).length > 0,
   )
 
-  // Award low point to holder's team immediately at start of play
+  // Points taken start at 0 and are credited as tricks are won
   const pointsTaken: [number, number] = [0, 0]
-  if (lowHolder !== null) {
-    pointsTaken[teamOf(lowHolder)] += 1
-  }
 
   const bidder = state.bidder!
   // Bidder normally leads, but if they have no trumps after discard/refill,
@@ -611,9 +608,7 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
   const winner = trickWinner(currentTrick, trump)
   let pointsTaken = [...state.pointsTaken] as [number, number]
   for (const p of currentTrick) {
-    // Low (2) already awarded to holder — do not double-count
     const pts = cardPoints(p.card, trump)
-    if (p.card.rank === '2' && isTrump(p.card, trump)) continue
     pointsTaken[teamOf(winner)] += pts
   }
 
