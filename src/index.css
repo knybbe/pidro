@@ -1367,8 +1367,8 @@ button {
     'w c e'
     '. s .';
   /* ~50% pile-to-pile overlap toward center */
-  column-gap: calc(var(--dump-cw) * -0.15);
-  row-gap: calc(var(--dump-ch) * -0.45);
+  column-gap: 0;
+  row-gap: calc(var(--dump-ch) * -0.40);
   align-items: center;
   justify-items: center;
   flex-shrink: 1;
