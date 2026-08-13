@@ -269,4 +269,77 @@ describe('bot play — no stupid gifts', () => {
       expect(highAct.bid).toBeGreaterThanOrEqual(7)
     }
   })
+
+  it('avoids dumping Pedro on opponent boss trump (King when Ace has already fallen) across all levels', () => {
+    // A♠ was played in a completed trick. Opponent (West, seat 1) leads K♠ (boss trump).
+    // North (seat 2) holds 5♠ (Pedro) and 4♠.
+    // North MUST dump 4♠, NEVER the Pedro across Easy, Medium, Hard!
+    const pedro = makeCard('S', '5')
+    const four = makeCard('S', '4')
+    const state = baseState({
+      trump: 'S',
+      currentSeat: 2,
+      trickLeader: 1,
+      completedTricks: [
+        [
+          { seat: 0, card: makeCard('S', 'A') },
+          { seat: 1, card: makeCard('S', '2') },
+          { seat: 2, card: makeCard('S', '3') },
+          { seat: 3, card: makeCard('S', '6') },
+        ],
+      ],
+      currentTrick: [
+        { seat: 1, card: makeCard('S', 'K') }, // Opponent plays boss K♠
+      ],
+      hands: [[], [makeCard('S', '8')], [pedro, four], [makeCard('S', '7')]],
+      activeSeats: [0, 1, 2, 3],
+    })
+
+    for (const diff of ['easy', 'medium', 'hard'] as const) {
+      const s = {
+        ...state,
+        seats: state.seats.map((seat, i) =>
+          i === 2 ? { ...seat, kind: 'bot' as const, difficulty: diff } : seat,
+        ) as GameState['seats'],
+      }
+      expect(playAs(s, 2), diff).toBe(four.id)
+    }
+  })
+
+  it('smears Pedro on partner boss trump (King when Ace has already fallen) across all levels', () => {
+    // A♠ was played in a completed trick. Partner (South, seat 0) leads K♠ (boss trump).
+    // North (seat 2) holds 5♠ (Pedro) and 4♠.
+    // North MUST smear 5♠ on partner's boss King across Easy, Medium, Hard!
+    const pedro = makeCard('S', '5')
+    const four = makeCard('S', '4')
+    const state = baseState({
+      trump: 'S',
+      currentSeat: 2,
+      trickLeader: 0,
+      completedTricks: [
+        [
+          { seat: 0, card: makeCard('S', 'A') },
+          { seat: 1, card: makeCard('S', '2') },
+          { seat: 2, card: makeCard('S', '3') },
+          { seat: 3, card: makeCard('S', '6') },
+        ],
+      ],
+      currentTrick: [
+        { seat: 0, card: makeCard('S', 'K') }, // Partner leads boss K♠
+        { seat: 1, card: makeCard('S', '8') },
+      ],
+      hands: [[], [], [pedro, four], [makeCard('S', '7')]],
+      activeSeats: [0, 1, 2, 3],
+    })
+
+    for (const diff of ['easy', 'medium', 'hard'] as const) {
+      const s = {
+        ...state,
+        seats: state.seats.map((seat, i) =>
+          i === 2 ? { ...seat, kind: 'bot' as const, difficulty: diff } : seat,
+        ) as GameState['seats'],
+      }
+      expect(playAs(s, 2), diff).toBe(pedro.id)
+    }
+  })
 })

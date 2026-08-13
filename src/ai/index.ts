@@ -331,47 +331,48 @@ function choosePlay(
     return bestDump(sorted, trump).id
   }
 
-  // —— We can take the trick ——
-  if (win) {
-    // Never spend a pedro to win a worthless trick unless last or necessary — dump instead
-    if (isPedro(win, trump) && pointsInTrick === 0 && !pedroInTrick) {
-      const nonPedroWin = sorted.find(
-        (c) =>
-          !isPedro(c, trump) &&
-          trumpStrength(c, trump) > trumpStrength(winning.card, trump),
-      )
-      if (nonPedroWin) return nonPedroWin.id
-      if (!lastToPlay && diff !== 'easy') return bestDump(sorted, trump).id
-    }
+  // —— Opponent is winning ——
+  const opponentBoss = isBossTrump(winning.card, state, seat, trump)
 
-    // Prefer a non-pedro winner when the cheapest winner is a pedro
-    if (isPedro(win, trump)) {
-      const nonPedroWin = sorted.find(
-        (c) =>
-          !isPedro(c, trump) &&
-          trumpStrength(c, trump) > trumpStrength(winning.card, trump),
-      )
-      if (nonPedroWin) return nonPedroWin.id
-    }
-
-    // Easy: take when points/pedro at stake or last; otherwise often take
-    if (diff === 'easy') {
-      if (pedroInTrick || pointsInTrick >= 1 || lastToPlay || Math.random() < 0.6) {
-        return win.id
-      }
-      return bestDump(sorted, trump).id
-    }
-
-    // Medium / hard: take valuable tricks, free wins, or when last to play
-    const valuable = pedroInTrick || pointsInTrick >= 1
-    const cheapNonPedro = !isPedro(win, trump) && cardPoints(win, trump) <= 1
-    if (valuable || lastToPlay || cheapNonPedro || diff === 'hard') {
-      return win.id
-    }
+  // If opponent's card is boss (unbeatable) or we cannot beat it:
+  // ALL player levels must recognize this and protect Pedros and value cards by dumping lowest trash!
+  if (opponentBoss || !win) {
     return bestDump(sorted, trump).id
   }
 
-  // —— Cannot beat current winner: never gift a pedro or high points ——
+  // —— We can beat opponent's winning card (win is non-null and opponent is not boss) ——
+  // Never spend a pedro to win a worthless trick unless last to play or necessary — dump instead
+  if (isPedro(win, trump) && pointsInTrick === 0 && !pedroInTrick) {
+    const nonPedroWin = sorted.find(
+      (c) =>
+        !isPedro(c, trump) &&
+        trumpStrength(c, trump) > trumpStrength(winning.card, trump),
+    )
+    if (nonPedroWin) return nonPedroWin.id
+    if (!lastToPlay) return bestDump(sorted, trump).id
+  }
+
+  // Prefer a non-pedro winner when the cheapest winner is a pedro
+  if (isPedro(win, trump)) {
+    const nonPedroWin = sorted.find(
+      (c) =>
+        !isPedro(c, trump) &&
+        trumpStrength(c, trump) > trumpStrength(winning.card, trump),
+    )
+    if (nonPedroWin) return nonPedroWin.id
+  }
+
+  // Take when points/pedro at stake, when last to play, or when winning cheaply
+  const valuable = pedroInTrick || pointsInTrick >= 1
+  const cheapNonPedro = !isPedro(win, trump) && cardPoints(win, trump) <= 1
+  if (valuable || lastToPlay || cheapNonPedro || diff === 'hard') {
+    return win.id
+  }
+
+  if (diff === 'easy' && Math.random() < 0.6) {
+    return win.id
+  }
+
   return bestDump(sorted, trump).id
 }
 
@@ -382,23 +383,20 @@ function chooseLead(
   trump: Suit,
   diff: Difficulty,
 ): Card {
-  // 1. Ace of Trump is the best lead in the game: pulls trumps & lets partner smear Pedro
-  const ace = sortedLowToHigh.find((c) => c.rank === 'A' && isTrump(c, trump))
-  if (ace) return ace
+  // 1. Boss trump (Ace, or King when Ace has fallen, etc.) across ALL player levels:
+  // Pulls remaining trumps and gives partner a guaranteed opportunity to smear Pedro!
+  const boss = sortedLowToHigh.find(
+    (c) => !isPedro(c, trump) && isBossTrump(c, state, seat, trump),
+  )
+  if (boss) return boss
 
-  if (diff === 'medium' || diff === 'hard') {
-    // 2. Boss trump (e.g. King when Ace already fallen): pull remaining trumps
-    const boss = sortedLowToHigh.find(
-      (c) => !isPedro(c, trump) && isBossTrump(c, state, seat, trump),
-    )
-    if (boss) return boss
-
-    // 3. On Hard: lead King if we have length to draw out opposing high cards
+  // 2. On Hard: lead King if we have length to draw out opposing high cards
+  if (diff === 'hard' && sortedLowToHigh.length >= 3) {
     const king = sortedLowToHigh.find((c) => c.rank === 'K')
-    if (king && diff === 'hard' && sortedLowToHigh.length >= 3) return king
+    if (king) return king
   }
 
-  // Never lead a Pedro if anything else exists
+  // 3. Never lead a Pedro or value card into the dark if we have safe low trumps
   return bestDump(sortedLowToHigh, trump)
 }
 
