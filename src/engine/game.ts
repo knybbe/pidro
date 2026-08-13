@@ -621,12 +621,15 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
 
   // If winner has no trumps left, lead passes to next active clockwise
   let nextLeader: Seat | null = winner
-  let coldRevealed = [...state.coldRevealed] as [
-    boolean,
-    boolean,
-    boolean,
-    boolean,
-  ]
+  // Reveal cold hands along the path to the end of the trick / leader
+  let coldRevealed = revealColdAlongPath(
+    seat,
+    state.trickLeader ?? seat,
+    hands,
+    trump,
+    state.coldRevealed,
+    true,
+  )
   if (!activeSeats.includes(winner)) {
     // Winner would have led next but is cold — reveal leftovers now
     coldRevealed[winner] = true
