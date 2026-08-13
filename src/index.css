@@ -2260,42 +2260,5 @@ button.card.black {
   .info-bar-text {
     font-size: 1rem;
   }
-  .lobby {
-    gap: clamp(1rem, 2.5vh, 2rem);
-    padding: clamp(1rem, 3vh, 3rem) 2rem clamp(1.5rem, 4vh, 4rem);
-  }
-  .lobby h1 {
-    font-size: clamp(3rem, 6vh, 4.5rem);
-  }
-  .lobby-sub {
-    font-size: clamp(1rem, 2vh, 1.35rem);
-  }
-  .lobby-badge {
-    font-size: 0.95rem;
-    padding: 0.35rem 1.1rem;
-  }
-  .lobby .panel {
-    padding: 1.25rem 1.75rem 1.5rem;
-    border-radius: 20px;
-  }
-  .lobby .panel h2 {
-    font-size: 1.35rem;
-  }
-  .lobby .hint {
-    font-size: 1.05rem;
-  }
-  .diff-label {
-    font-size: 1.05rem;
-  }
-  .pill {
-    font-size: 1.05rem;
-    padding: 0.75rem 0.6rem;
-    border-radius: 14px;
-  }
-  .lobby-actions .btn {
-    min-height: 56px;
-    font-size: 1.15rem;
-    border-radius: 16px;
-  }
 }
 
