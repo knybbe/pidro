@@ -639,35 +639,9 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
   // Solo last player: still play out remaining trumps one trick at a time
   // (do not auto-scoop remaining cards).
 
-  // Hand over when nobody has trumps left
-  const handOver =
-    activeSeats.length === 0 ||
-    ([0, 1, 2, 3] as Seat[]).every(
-      (s) => trumpsInHand(hands[s], trump).length === 0,
-    )
-
-  if (handOver) {
-    const allCold = ([0, 1, 2, 3] as Seat[]).map(
-      (s) =>
-        coldRevealed[s] || trumpsInHand(hands[s], trump).length === 0,
-    ) as [boolean, boolean, boolean, boolean]
-    return finishHand({
-      ...state,
-      hands,
-      currentTrick,
-      completedTricks,
-      pointsTaken,
-      activeSeats: [],
-      coldRevealed: allCold,
-      purchasedIds: prunePurchased(purchasedIds, hands, allCold, trump),
-      currentSeat: null,
-      trickLeader: null,
-    })
-  }
-
   purchasedIds = prunePurchased(purchasedIds, hands, coldRevealed, trump)
 
-  // Pause so every completed trick stays visible until Continue
+  // Pause so every completed trick (including the final trick) stays visible until Continue
   return {
     ...state,
     hands,
@@ -684,18 +658,16 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
   }
 }
 
-/** After Continue on a finished trick: clear table and start next lead. */
+/** After Continue on a finished trick: clear table and start next lead (or finish hand). */
 export function continueAfterTrick(state: GameState): GameState {
   if (state.phase !== 'trick_pause') {
     throw new Error('Not waiting on a trick')
   }
   const trump = state.trump!
-  let leader = state.trickLeader
-  if (leader === null) {
-    throw new Error('No next leader')
-  }
-  // Collect finished trick onto the winner's face-up dump pile
   const winner = trickWinner(state.currentTrick, trump)
+  let leader = state.trickLeader ?? winner
+
+  // Collect finished trick onto the winner's face-up dump pile
   const dumpPiles = state.dumpPiles.map((p) => [...p]) as [
     Card[],
     Card[],
@@ -710,34 +682,23 @@ export function continueAfterTrick(state: GameState): GameState {
   const active = state.activeSeats.filter(
     (s) => trumpsInHand(state.hands[s], trump).length > 0,
   )
-  if (!active.includes(leader)) {
-    leader = nextActiveFrom(leader, active)
-  }
-  if (leader === null) {
-    throw new Error('No active leader after trick')
+  if (leader !== null && !active.includes(leader)) {
+    leader = nextActiveFrom(leader, active) ?? winner
   }
 
   // Reveal cold seats that play order passes when going to the new leader
-  // (from last player of previous trick toward the leader).
   const lastPlayer =
     state.currentTrick.length > 0
       ? state.currentTrick[state.currentTrick.length - 1].seat
-      : state.trickLeader ?? leader
+      : state.trickLeader ?? (leader ?? winner)
   let coldRevealed = revealColdAlongPath(
     lastPlayer,
-    leader,
+    leader ?? winner,
     state.hands,
     trump,
     state.coldRevealed,
     false,
   )
-  // Leader themselves with no trumps can't lead — already handled above.
-  // If someone is cold and would be "up" as first skipped from leader around:
-  // mid-trick path handles that. On lead, reveal cold seats with no cards to play
-  // that sit between previous last player and leader was done; also reveal a seat
-  // that has no trumps if they are the would-be first seat after leader with no trumps
-  // when only checking path... When a cold seat would be the sole "next" after leader
-  // plays, reveal happens in playCard.
 
   const purchasedIds = prunePurchased(
     state.purchasedIds,
@@ -745,6 +706,30 @@ export function continueAfterTrick(state: GameState): GameState {
     coldRevealed,
     trump,
   )
+
+  // Check if hand is finished after this trick:
+  const handOver =
+    active.length === 0 ||
+    ([0, 1, 2, 3] as Seat[]).every(
+      (s) => trumpsInHand(state.hands[s], trump).length === 0,
+    )
+
+  if (handOver) {
+    const allCold = ([0, 1, 2, 3] as Seat[]).map(
+      (s) =>
+        coldRevealed[s] || trumpsInHand(state.hands[s], trump).length === 0,
+    ) as [boolean, boolean, boolean, boolean]
+    return finishHand({
+      ...state,
+      dumpPiles,
+      currentTrick: [],
+      activeSeats: [],
+      coldRevealed: allCold,
+      purchasedIds,
+      currentSeat: null,
+      trickLeader: null,
+    })
+  }
 
   return {
     ...state,

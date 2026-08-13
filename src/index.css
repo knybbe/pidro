@@ -700,6 +700,7 @@ button {
   max-width: 100%;
   z-index: 2;
   justify-self: center;
+  align-self: start;
 }
 
 .grid-west {

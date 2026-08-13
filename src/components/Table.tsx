@@ -290,14 +290,14 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   ['--felt-side' as string]: `${feltSide}px`,
                   ['--ui-scale' as string]: String(uiScale),
                   // Primary card sizes (played / seat / hand / dump)
-                  ['--play-cw' as string]: `${(3.85 * uiScale).toFixed(3)}rem`,
-                  ['--play-ch' as string]: `${(5.4 * uiScale).toFixed(3)}rem`,
-                  ['--seat-cw' as string]: `${(2.7 * uiScale).toFixed(3)}rem`,
-                  ['--seat-ch' as string]: `${(3.8 * uiScale).toFixed(3)}rem`,
-                  ['--hand-cw' as string]: `${(3.15 * uiScale).toFixed(3)}rem`,
-                  ['--hand-ch' as string]: `${(4.4 * uiScale).toFixed(3)}rem`,
-                  ['--dump-cw' as string]: `${(2.1 * uiScale).toFixed(3)}rem`,
-                  ['--dump-ch' as string]: `${(2.95 * uiScale).toFixed(3)}rem`,
+                  ['--play-cw' as string]: `${(4.0 * uiScale).toFixed(3)}rem`,
+                  ['--play-ch' as string]: `${(5.6 * uiScale).toFixed(3)}rem`,
+                  ['--seat-cw' as string]: `${(2.85 * uiScale).toFixed(3)}rem`,
+                  ['--seat-ch' as string]: `${(4.0 * uiScale).toFixed(3)}rem`,
+                  ['--hand-cw' as string]: `${(3.3 * uiScale).toFixed(3)}rem`,
+                  ['--hand-ch' as string]: `${(4.6 * uiScale).toFixed(3)}rem`,
+                  ['--dump-cw' as string]: `${(2.25 * uiScale).toFixed(3)}rem`,
+                  ['--dump-ch' as string]: `${(3.15 * uiScale).toFixed(3)}rem`,
                 } as CSSProperties)
               : undefined
           }
@@ -564,9 +564,6 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   ) : null}
                 </div>
               </div>
-
-              {/* You + hand = south “deck” (label 10px above cards like robots) */}
-              <div className="you-label">You</div>
 
               <div
                 className={`hand-row on-felt ${choosingTrump ? 'hand-trump-pick' : ''}`}
@@ -1057,14 +1054,11 @@ function bidStatusFor(
 }
 
 function seatLabel(
-  state: ReturnType<typeof useGameStore.getState>['state'],
+  _state: ReturnType<typeof useGameStore.getState>['state'],
   seat: Seat,
 ) {
-  // Turn is shown with color only (.seat-slot.turn) — no ● (avoids width jump)
-  const seatCfg = state.seats[seat]
-  if (seatCfg.kind === 'human') return 'You'
-  const d = seatCfg.difficulty ?? 'medium'
-  return d.charAt(0).toUpperCase() + d.slice(1)
+  const names = ['You', 'West', 'North', 'East']
+  return names[seat]
 }
 
 function isActive(
