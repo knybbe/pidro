@@ -327,7 +327,7 @@ button {
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.3rem calc(10px * var(--ui-scale, 1));
+  padding: 0.3rem 0;
   background: rgba(0, 0, 0, 0.35);
   z-index: 2;
   flex-shrink: 0;
@@ -2172,7 +2172,7 @@ button.card.black {
 /* Extra-tight viewport (compact height / mobile screens) */
 @media (max-width: 520px), (max-height: 540px) {
   .table-screen .top-bar {
-    padding: 0.15rem 0.3rem;
+    padding: 0.15rem 0;
   }
 
   .table-screen .info-bar-text {
@@ -2188,7 +2188,7 @@ button.card.black {
 /* Ultra-small viewports (e.g. 300x300 smartwatch / mini-embed / narrow screens) */
 @media (max-width: 360px), (max-height: 360px) {
   .top-bar {
-    padding: 0.15rem 0.25rem;
+    padding: 0.15rem 0;
     gap: 0.2rem;
   }
   .icon-btn {
@@ -2223,7 +2223,7 @@ button.card.black {
 /* 4K and Ultra-wide Displays (1400px+ width or 1000px+ height) */
 @media (min-width: 1400px) {
   .top-bar {
-    padding: 0.35rem 0.75rem;
+    padding: 0.35rem 0;
     gap: 0.6rem;
   }
   .icon-btn {
