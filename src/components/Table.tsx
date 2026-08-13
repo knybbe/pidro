@@ -158,6 +158,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
   // Largest square that fits the host (fills the shorter side completely)
   const feltHostRef = useRef<HTMLDivElement>(null)
   const [feltSide, setFeltSide] = useState(0)
+  const lastSideRef = useRef(0)
   /** Design reference side (px). UI scales smoothly with the green felt. */
   const FELT_REF = 720
   useLayoutEffect(() => {
@@ -167,9 +168,12 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
       const w = el.clientWidth
       const h = el.clientHeight
       const side = Math.max(0, Math.floor(Math.min(w, h)))
-      setFeltSide(side)
+      if (Math.abs(side - lastSideRef.current) >= 2 || lastSideRef.current === 0) {
+        lastSideRef.current = side
+        setFeltSide(side)
+      }
       const compact =
-        side < 620 || window.innerWidth < 640 || window.innerHeight < 680
+        window.innerWidth < 520 || window.innerHeight < 540
       setCompactUi(compact)
     }
     measure()
@@ -186,7 +190,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
 
   const uiScale =
     feltSide > 0
-      ? Math.max(0.52, Math.min(1.2, feltSide / FELT_REF))
+      ? Math.max(0.3, Math.min(3.5, feltSide / FELT_REF))
       : 1
 
   /** All cards this seat has played this hand (stay on table, stacked). */
