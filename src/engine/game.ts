@@ -13,6 +13,7 @@ import {
 } from './rules'
 import { matchWinner, scoreHand } from './score'
 import type {
+  BotConfig,
   Card,
   Difficulty,
   GameMode,
@@ -25,7 +26,7 @@ import type {
 } from './types'
 import { teamOf } from './types'
 
-export type { GameMode, RiskLevel }
+export type { BotConfig, GameMode, RiskLevel }
 
 function emptyHands(): [Card[], Card[], Card[], Card[]] {
   return [[], [], [], []]
@@ -60,19 +61,35 @@ function actorPhrase(name: string, verb: 'wins' | 'won' | 'bids' | 'passes' | 'l
 }
 
 export function defaultSeats(
-  difficulties: [Difficulty, Difficulty, Difficulty] = [
-    'medium',
-    'medium',
-    'medium',
+  bots:
+    | [BotConfig, BotConfig, BotConfig]
+    | [Difficulty, Difficulty, Difficulty] = [
+    { difficulty: 'medium', biddingRisk: 'medium' },
+    { difficulty: 'medium', biddingRisk: 'medium' },
+    { difficulty: 'medium', biddingRisk: 'medium' },
   ],
-  biddingRisk: RiskLevel = 'medium',
+  defaultRisk: RiskLevel = 'medium',
 ): [SeatConfig, SeatConfig, SeatConfig, SeatConfig] {
+  const parseBot = (
+    b: BotConfig | Difficulty,
+  ): { difficulty: Difficulty; biddingRisk: RiskLevel } => {
+    if (typeof b === 'string') return { difficulty: b, biddingRisk: defaultRisk }
+    return {
+      difficulty: b.difficulty ?? 'medium',
+      biddingRisk: b.biddingRisk ?? defaultRisk,
+    }
+  }
+
+  const w = parseBot(bots[0])
+  const n = parseBot(bots[1])
+  const e = parseBot(bots[2])
+
   // 0 South human, 1 West bot, 2 North bot, 3 East bot
   return [
     { kind: 'human', name: 'You' },
-    { kind: 'bot', difficulty: difficulties[0], biddingRisk, name: 'West' },
-    { kind: 'bot', difficulty: difficulties[1], biddingRisk, name: 'North' },
-    { kind: 'bot', difficulty: difficulties[2], biddingRisk, name: 'East' },
+    { kind: 'bot', difficulty: w.difficulty, biddingRisk: w.biddingRisk, name: 'West' },
+    { kind: 'bot', difficulty: n.difficulty, biddingRisk: n.biddingRisk, name: 'North' },
+    { kind: 'bot', difficulty: e.difficulty, biddingRisk: e.biddingRisk, name: 'East' },
   ]
 }
 
@@ -116,12 +133,16 @@ export function startMatch(
   options?: {
     seed?: number
     difficulties?: [Difficulty, Difficulty, Difficulty]
+    bots?:
+      | [BotConfig, BotConfig, BotConfig]
+      | [Difficulty, Difficulty, Difficulty]
     biddingRisk?: RiskLevel
     gameMode?: GameMode
   },
 ): GameState {
-  const seats = options?.difficulties
-    ? defaultSeats(options.difficulties, options.biddingRisk ?? 'medium')
+  const bots = options?.bots ?? options?.difficulties
+  const seats = bots
+    ? defaultSeats(bots, options?.biddingRisk ?? 'medium')
     : state.seats
   const seed = options?.seed ?? Date.now()
   const gameMode = options?.gameMode ?? state.gameMode ?? 'classic'

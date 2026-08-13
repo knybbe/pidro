@@ -10,6 +10,7 @@ import {
   playCard,
   rematch,
   startMatch,
+  type BotConfig,
   type Difficulty,
   type GameMode,
   type GameState,
@@ -76,7 +77,9 @@ interface GameStore {
   bidDelaySec: BidDelaySec
   setBidDelaySec: (sec: BidDelaySec) => void
   start: (
-    difficulties: [Difficulty, Difficulty, Difficulty],
+    bots:
+      | [BotConfig, BotConfig, BotConfig]
+      | [Difficulty, Difficulty, Difficulty],
     gameMode?: GameMode,
     biddingRisk?: RiskLevel,
   ) => void
@@ -123,12 +126,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  start: (difficulties, gameMode = 'classic', biddingRisk = 'medium') => {
+  start: (bots, gameMode = 'classic', biddingRisk = 'medium') => {
     clearBot(get, set)
     const state = startMatch(
       createLobbyState(undefined, undefined, gameMode),
       {
-        difficulties,
+        bots,
         biddingRisk,
         gameMode,
       },

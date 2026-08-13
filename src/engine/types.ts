@@ -63,6 +63,11 @@ export interface TrickPlay {
   card: Card
 }
 
+export interface BotConfig {
+  difficulty?: Difficulty
+  biddingRisk?: RiskLevel
+}
+
 export interface SeatConfig {
   kind: 'human' | 'bot'
   difficulty?: Difficulty

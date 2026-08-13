@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import type { Difficulty, GameMode, RiskLevel } from '../engine'
+import type { BotConfig, Difficulty, GameMode, RiskLevel } from '../engine'
 import { useGameStore } from '../store/gameStore'
 
 const LEVELS: Difficulty[] = ['easy', 'medium', 'hard']
 const RISKS: { key: RiskLevel; label: string }[] = [
   { key: 'low', label: 'Low' },
-  { key: 'medium', label: 'Medium' },
+  { key: 'medium', label: 'Med' },
   { key: 'high', label: 'High' },
 ]
 
@@ -15,10 +15,18 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
   const hasSavedMatch = useGameStore(
     (s) => Boolean(s.savedState && s.savedState.phase !== 'lobby'),
   )
-  const [west, setWest] = useState<Difficulty>('medium')
-  const [north, setNorth] = useState<Difficulty>('medium')
-  const [east, setEast] = useState<Difficulty>('medium')
-  const [risk, setRisk] = useState<RiskLevel>('medium')
+  const [west, setWest] = useState<BotConfig>({
+    difficulty: 'medium',
+    biddingRisk: 'medium',
+  })
+  const [north, setNorth] = useState<BotConfig>({
+    difficulty: 'medium',
+    biddingRisk: 'medium',
+  })
+  const [east, setEast] = useState<BotConfig>({
+    difficulty: 'medium',
+    biddingRisk: 'medium',
+  })
   const [mode, setMode] = useState<GameMode>('classic')
 
   return (
@@ -57,25 +65,25 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
       <section className="panel">
         <h2>Robot players</h2>
         <p className="hint">You sit South. Partner is North.</p>
-        <DifficultyRow label="West (opponent)" value={west} onChange={setWest} />
-        <DifficultyRow label="North (partner)" value={north} onChange={setNorth} />
-        <DifficultyRow label="East (opponent)" value={east} onChange={setEast} />
-      </section>
-
-      <section className="panel">
-        <h2>Bidding risk</h2>
-        <p className="hint">How aggressively robot players bid on hands.</p>
-        <div className="diff-pills" role="group" aria-label="Bidding risk">
-          {RISKS.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              className={`pill ${risk === r.key ? 'active' : ''}`}
-              onClick={() => setRisk(r.key)}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="bot-configs-list">
+          <BotConfigRow
+            name="West"
+            role="Opponent"
+            config={west}
+            onChange={setWest}
+          />
+          <BotConfigRow
+            name="North"
+            role="Partner"
+            config={north}
+            onChange={setNorth}
+          />
+          <BotConfigRow
+            name="East"
+            role="Opponent"
+            config={east}
+            onChange={setEast}
+          />
         </div>
       </section>
 
@@ -92,7 +100,7 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
         <button
           type="button"
           className={hasSavedMatch ? 'btn secondary' : 'btn primary'}
-          onClick={() => start([west, north, east], mode, risk)}
+          onClick={() => start([west, north, east], mode)}
         >
           {hasSavedMatch ? 'New match' : 'Deal'}
         </button>
@@ -104,29 +112,57 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
   )
 }
 
-function DifficultyRow({
-  label,
-  value,
+function BotConfigRow({
+  name,
+  role,
+  config,
   onChange,
 }: {
-  label: string
-  value: Difficulty
-  onChange: (d: Difficulty) => void
+  name: string
+  role: string
+  config: BotConfig
+  onChange: (cfg: BotConfig) => void
 }) {
+  const diff = config.difficulty ?? 'medium'
+  const risk = config.biddingRisk ?? 'medium'
+
   return (
-    <div className="diff-row">
-      <span className="diff-label">{label}</span>
-      <div className="diff-pills" role="group" aria-label={label}>
-        {LEVELS.map((lvl) => (
-          <button
-            key={lvl}
-            type="button"
-            className={`pill ${value === lvl ? 'active' : ''}`}
-            onClick={() => onChange(lvl)}
-          >
-            {lvl}
-          </button>
-        ))}
+    <div className="bot-config-card">
+      <div className="bot-config-header">
+        <span className="bot-name">{name}</span>
+        <span className="bot-role">{role}</span>
+      </div>
+      <div className="bot-settings-grid">
+        <div className="bot-setting-group">
+          <span className="bot-setting-label">Skill</span>
+          <div className="mini-pills" role="group" aria-label={`${name} skill`}>
+            {LEVELS.map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                className={`pill mini-pill ${diff === lvl ? 'active' : ''}`}
+                onClick={() => onChange({ ...config, difficulty: lvl })}
+              >
+                {lvl}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="bot-setting-group">
+          <span className="bot-setting-label">Bidding Risk</span>
+          <div className="mini-pills" role="group" aria-label={`${name} bidding risk`}>
+            {RISKS.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                className={`pill mini-pill ${risk === r.key ? 'active' : ''}`}
+                onClick={() => onChange({ ...config, biddingRisk: r.key })}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
