@@ -844,13 +844,13 @@ button {
 .seat-slot.west {
   flex-direction: row;
   align-items: flex-start; /* played card top = deck top */
-  gap: 5px;
+  gap: calc(10px * var(--ui-scale, 1));
 }
 
 .seat-slot.east {
   flex-direction: row; /* DOM is already played then deck */
   align-items: flex-start;
-  gap: 5px;
+  gap: calc(10px * var(--ui-scale, 1));
 }
 
 .seat-deck {
@@ -1577,7 +1577,7 @@ button {
   display: flex;
   flex-wrap: nowrap;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end;
   gap: calc(0.2rem * var(--ui-scale, 1));
   width: 100%;
   max-width: 100%;
@@ -1643,6 +1643,7 @@ button {
   max-height: calc(2.4rem * var(--ui-scale, 1));
   font-size: calc(1.15rem * var(--ui-scale, 1));
   padding: 0.15rem 0.45rem;
+  align-self: flex-end;
 }
 
 .hand-row.hand-trump-pick {
