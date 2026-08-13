@@ -409,4 +409,37 @@ describe('Kokkola mode', () => {
     const dumpTotal = s.dumpPiles.reduce((n, p) => n + p.length, 0)
     expect(dumpTotal).toBeGreaterThan(0)
   })
+
+  it('dumpPiles are never contaminated by played trick cards and players hold only trumps after refill', () => {
+    let s = startMatch(createLobbyState(12345))
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+    s = chooseTrump(s, 1, 'H') // trump = Hearts
+
+    expect(s.phase).toBe('playing')
+    // After refill, all cards in hands MUST be trumps
+    for (let i = 0; i < 4; i++) {
+      for (const card of s.hands[i]) {
+        expect(isTrump(card, s.trump!)).toBe(true)
+      }
+    }
+
+    const initialDumpCount = s.dumpPiles.reduce((n, p) => n + p.length, 0)
+
+    // Play a trick through all 4 seats
+    while (s.phase === 'playing') {
+      const actor = s.currentSeat!
+      const legal = legalPlays(s, actor)
+      if (legal.length === 0) break
+      s = playCard(s, actor, legal[0].id)
+    }
+    expect(s.phase).toBe('trick_pause')
+    s = continueAfterTrick(s)
+
+    // Dump piles count should NOT increase when tricks are played
+    const newDumpCount = s.dumpPiles.reduce((n, p) => n + p.length, 0)
+    expect(newDumpCount).toBe(initialDumpCount)
+  })
 })

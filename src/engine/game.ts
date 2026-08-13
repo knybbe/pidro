@@ -341,8 +341,12 @@ export function performDiscardAndRefill(state: GameState): GameState {
     for (let i = 0; i < 3; i++) {
       while (hands[s].length < HAND_SIZE_AFTER_DISCARD && stock.length > 0) {
         const drawn = stock.shift()!
-        hands[s].push(drawn)
-        purchasedIds.push(drawn.id)
+        if (isTrump(drawn, trump)) {
+          hands[s].push(drawn)
+          purchasedIds.push(drawn.id)
+        } else {
+          dumpPiles[s].push(drawn)
+        }
       }
       s = nextSeat(s)
     }
@@ -496,8 +500,10 @@ function discardDownToSix(
   if (hand.length <= HAND_SIZE_AFTER_DISCARD) {
     return { keep: hand, discarded: [] }
   }
-  // Keep all scoring trumps, then highest non-scoring trumps, then anything
-  const scoring = hand.filter((c) => isScoringTrump(c, trump))
+  // Keep all scoring trumps (5-pt Pedros prioritized), then highest non-scoring trumps, then anything
+  const scoring = hand
+    .filter((c) => isScoringTrump(c, trump))
+    .sort((a, b) => cardPoints(b, trump) - cardPoints(a, trump))
   const nonScoringTrumps = hand
     .filter((c) => isTrump(c, trump) && !isScoringTrump(c, trump))
     .sort((a, b) => trumpStrength(b, trump) - trumpStrength(a, trump))
@@ -667,16 +673,7 @@ export function continueAfterTrick(state: GameState): GameState {
   const winner = trickWinner(state.currentTrick, trump)
   let leader = state.trickLeader ?? winner
 
-  // Collect finished trick onto the winner's face-up dump pile
-  const dumpPiles = state.dumpPiles.map((p) => [...p]) as [
-    Card[],
-    Card[],
-    Card[],
-    Card[],
-  ]
-  for (const p of state.currentTrick) {
-    dumpPiles[winner].push(p.card)
-  }
+  const dumpPiles = state.dumpPiles
 
   // Ensure leader still has trumps; otherwise pass lead clockwise among active
   const active = state.activeSeats.filter(
