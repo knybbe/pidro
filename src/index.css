@@ -1408,13 +1408,13 @@ button {
 .dump-n {
   grid-area: n;
   z-index: 4;
-  transform: translateY(calc(var(--dump-ch) * 0.5));
+  transform: translateY(calc(var(--dump-ch) * 0.75));
 }
 
 .dump-s {
   grid-area: s;
   z-index: 4;
-  transform: translateY(calc(var(--dump-ch) * -0.5));
+  transform: translateY(calc(var(--dump-ch) * -0.75));
 }
 
 .dump-w {
