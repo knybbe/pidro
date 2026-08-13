@@ -80,16 +80,16 @@ button {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.45rem, 1.6vh, 1.25rem);
+  justify-content: space-between;
+  gap: clamp(0.25rem, 1.2vh, 1rem);
   padding:
-    clamp(0.45rem, 1.8vh, 1.25rem)
+    clamp(0.35rem, 1.4vh, 1.2rem)
     1.15rem
-    clamp(0.55rem, 2vh, 2rem);
-  max-width: clamp(480px, 35vw, 900px);
+    clamp(0.4rem, 1.6vh, 1.5rem);
+  max-width: clamp(440px, 35vw, 900px);
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
-  /* Short screens may scroll; ≥600px is forced to fit (see media below) */
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -97,24 +97,24 @@ button {
 
 .lobby-hero {
   text-align: center;
-  padding: clamp(0.25rem, 1.5vh, 1.5rem) 0 clamp(0.15rem, 0.6vh, 0.5rem);
+  padding: clamp(0.1rem, 0.8vh, 0.8rem) 0 clamp(0.1rem, 0.4vh, 0.4rem);
   flex-shrink: 0;
 }
 
 .lobby-badge {
   display: inline-block;
-  font-size: 0.75rem;
+  font-size: clamp(0.65rem, 1.2vh, 0.75rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
   border: 1px solid var(--accent-dim);
   border-radius: 999px;
-  padding: 0.25rem 0.75rem;
-  margin-bottom: clamp(0.25rem, 1vh, 0.75rem);
+  padding: clamp(0.1rem, 0.4vh, 0.25rem) clamp(0.45rem, 1vw, 0.75rem);
+  margin-bottom: clamp(0.15rem, 0.6vh, 0.5rem);
 }
 
 .lobby h1 {
-  font-size: clamp(1.85rem, 5.5vh, 3.25rem);
+  font-size: clamp(1.45rem, 4.5vh, 2.85rem);
   margin: 0;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -122,36 +122,43 @@ button {
 
 .lobby-sub {
   color: var(--muted);
-  margin: clamp(0.2rem, 0.7vh, 0.5rem) 0 0;
-  font-size: clamp(0.8rem, 1.6vh, 0.95rem);
+  margin: clamp(0.1rem, 0.4vh, 0.35rem) 0 0;
+  font-size: clamp(0.72rem, 1.4vh, 0.95rem);
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lobby .panel {
   background: var(--bg-elevated);
   border-radius: var(--radius);
-  padding: clamp(0.55rem, 1.3vh, 1rem) 1rem clamp(0.6rem, 1.4vh, 1.15rem);
+  padding: clamp(0.35rem, 1vh, 0.8rem) 0.85rem clamp(0.4rem, 1.1vh, 0.95rem);
   border: 1px solid #243328;
   flex-shrink: 0;
 }
 
 .lobby .panel h2 {
   margin: 0 0 0.15rem;
-  font-size: clamp(0.9rem, 1.8vh, 1.05rem);
+  font-size: clamp(0.82rem, 1.5vh, 1.05rem);
 }
 
 .lobby .hint {
-  margin: 0 0 clamp(0.35rem, 1vh, 1rem);
+  margin: 0 0 clamp(0.2rem, 0.7vh, 0.65rem);
   color: var(--muted);
-  font-size: clamp(0.75rem, 1.5vh, 0.9rem);
+  font-size: clamp(0.7rem, 1.3vh, 0.88rem);
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .diff-row {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-bottom: clamp(0.4rem, 1vh, 0.85rem);
+  gap: clamp(0.15rem, 0.4vh, 0.3rem);
+  margin-bottom: clamp(0.2rem, 0.7vh, 0.6rem);
 }
 
 .diff-row:last-child {
@@ -159,7 +166,7 @@ button {
 }
 
 .diff-label {
-  font-size: clamp(0.78rem, 1.5vh, 0.9rem);
+  font-size: clamp(0.72rem, 1.3vh, 0.88rem);
   color: var(--muted);
 }
 
@@ -175,12 +182,12 @@ button {
 }
 
 .pill {
-  padding: clamp(0.35rem, 0.9vh, 0.55rem) 0.35rem;
+  padding: clamp(0.25rem, 0.7vh, 0.45rem) 0.35rem;
   border-radius: 10px;
   background: #0f1812;
   border: 1px solid #2a3a2e;
   text-transform: capitalize;
-  font-size: clamp(0.8rem, 1.5vh, 0.9rem);
+  font-size: clamp(0.75rem, 1.4vh, 0.9rem);
   min-height: 0;
 }
 
@@ -194,87 +201,15 @@ button {
 .lobby-actions {
   display: flex;
   flex-direction: column;
-  gap: clamp(0.4rem, 1vh, 0.65rem);
+  gap: clamp(0.3rem, 0.8vh, 0.65rem);
   margin-top: auto;
   flex-shrink: 0;
   padding-top: 0.15rem;
 }
 
 .lobby-actions .btn {
-  min-height: clamp(40px, 6.5vh, 48px);
-  padding: clamp(0.45rem, 1vh, 0.75rem) 1.1rem;
-}
-
-/*
- * First page must fit the viewport when height ≥ 600px — no scroll, no clip.
- * Fluid clamps above already shrink chrome; this locks overflow and trims more.
- */
-@media (min-height: 600px) {
-  .lobby {
-    overflow: hidden;
-    justify-content: flex-start;
-  }
-
-  .lobby-hero {
-    padding-top: 0.35rem;
-  }
-
-  .lobby-sub {
-    /* One line when possible */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .lobby .hint {
-    /* Keep mode/robot blurbs short on mid-height phones */
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-  }
-}
-
-/* Extra headroom on short-but-≥600 landscape / small phones */
-@media (min-height: 600px) and (max-height: 720px) {
-  .lobby {
-    gap: 0.45rem;
-    padding-top: 0.35rem;
-    padding-bottom: 0.5rem;
-  }
-
-  .lobby-badge {
-    margin-bottom: 0.2rem;
-    padding: 0.12rem 0.55rem;
-    font-size: 0.68rem;
-  }
-
-  .lobby h1 {
-    font-size: 1.85rem;
-  }
-
-  .lobby .panel {
-    padding: 0.5rem 0.85rem 0.55rem;
-  }
-
-  .lobby .hint {
-    margin-bottom: 0.3rem;
-    font-size: 0.75rem;
-  }
-
-  .diff-row {
-    margin-bottom: 0.35rem;
-    gap: 0.2rem;
-  }
-
-  .pill {
-    padding: 0.32rem 0.25rem;
-    font-size: 0.8rem;
-  }
-
-  .lobby-actions .btn {
-    min-height: 40px;
-  }
+  min-height: clamp(36px, 5.5vh, 48px);
+  padding: clamp(0.35rem, 0.8vh, 0.75rem) 1.1rem;
 }
 
 .btn {
@@ -2286,49 +2221,6 @@ button.card.black {
   }
   .score-target {
     font-size: 0.68rem;
-  }
-  .lobby {
-    padding: 0.35rem 0.5rem 0.5rem;
-    gap: 0.35rem;
-  }
-  .lobby-badge {
-    font-size: 0.65rem;
-    padding: 0.12rem 0.45rem;
-    margin-bottom: 0.15rem;
-  }
-  .lobby h1 {
-    font-size: 1.45rem;
-  }
-  .lobby-sub {
-    font-size: 0.72rem;
-  }
-  .lobby .panel {
-    padding: 0.4rem 0.55rem 0.45rem;
-  }
-  .lobby .panel h2 {
-    font-size: 0.8rem;
-  }
-  .lobby .hint {
-    font-size: 0.68rem;
-    margin-bottom: 0.2rem;
-  }
-  .diff-row {
-    gap: 0.15rem;
-    margin-bottom: 0.25rem;
-  }
-  .diff-label {
-    font-size: 0.72rem;
-  }
-  .pill {
-    font-size: 0.72rem;
-    padding: 0.25rem 0.15rem;
-    border-radius: 6px;
-  }
-  .lobby-actions .btn {
-    min-height: 36px;
-    font-size: 0.85rem;
-    padding: 0.35rem 0.6rem;
-    border-radius: 8px;
   }
 }
 
