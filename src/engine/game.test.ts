@@ -229,6 +229,29 @@ describe('play', () => {
     expect(winner).toBe(2)
   })
 
+  it('passes the opening lead to bidder partner if partner has only 1 card', () => {
+    let s = startMatch(createLobbyState(100), { seed: 100 })
+    const bidder = s.currentSeat!
+    const partner = ((bidder + 2) % 4) as Seat
+    s = placeBid(s, bidder, 6)
+    s = placeBid(s, ((bidder + 1) % 4) as Seat, null)
+    s = placeBid(s, ((bidder + 2) % 4) as Seat, null)
+    s = placeBid(s, ((bidder + 3) % 4) as Seat, null)
+    expect(s.bidder).toBe(bidder)
+
+    // Force partner of bidder to hold exactly 1 trump and empty stock
+    const hands: typeof s.hands = [[], [], [], []]
+    hands[bidder] = [makeCard('H', 'K'), makeCard('H', 'Q')]
+    hands[partner] = [makeCard('H', 'A')]
+    s = { ...s, hands, stock: [] }
+
+    s = chooseTrump(s, bidder, 'H')
+    expect(s.phase).toBe('playing')
+    // Partner has 1 card, so partner leads instead of bidder
+    expect(s.trickLeader).toBe(partner)
+    expect(s.currentSeat).toBe(partner)
+  })
+
   it('defender with a singleton trump must play it on the opening trick', () => {
     let s = startMatch(createLobbyState(42), { seed: 42 })
     s = placeBid(s, 1, 6)

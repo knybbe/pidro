@@ -404,10 +404,13 @@ export function performDiscardAndRefill(state: GameState): GameState {
   const pointsTaken: [number, number] = [0, 0]
 
   const bidder = state.bidder!
-  // Bidder normally leads, but if they have no trumps after discard/refill,
-  // pass the lead to the next active seat clockwise from the bidder.
+  const partner = ((bidder + 2) % 4) as Seat
+  // Bidder normally leads. But if bidder's partner has only 1 card,
+  // partner leads the first trick of the round instead of bidder!
   let leader: Seat | null = bidder
-  if (!activeSeats.includes(bidder)) {
+  if (activeSeats.includes(partner) && hands[partner].length === 1) {
+    leader = partner
+  } else if (!activeSeats.includes(bidder)) {
     leader = nextActiveFrom(bidder, activeSeats)
   }
   if (leader === null && activeSeats.length > 0) {
