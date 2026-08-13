@@ -701,7 +701,7 @@ button {
   z-index: 2;
   justify-self: center;
   align-self: start;
-  margin: 0;
+  margin-top: calc(-5px * var(--ui-scale, 1));
 }
 
 .grid-west {
