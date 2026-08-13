@@ -299,6 +299,12 @@ button {
   color: #1a1405;
 }
 
+.btn.secondary {
+  background: #1e2e22;
+  border: 1px solid #3a4e3e;
+  color: var(--ink);
+}
+
 .btn.ghost {
   background: transparent;
   border: 1px solid #334438;

@@ -6,6 +6,10 @@ const LEVELS: Difficulty[] = ['easy', 'medium', 'hard']
 
 export function Lobby({ onShowRules }: { onShowRules: () => void }) {
   const start = useGameStore((s) => s.start)
+  const resume = useGameStore((s) => s.resume)
+  const hasSavedMatch = useGameStore(
+    (s) => Boolean(s.savedState && s.savedState.phase !== 'lobby')
+  )
   const [west, setWest] = useState<Difficulty>('medium')
   const [north, setNorth] = useState<Difficulty>('medium')
   const [east, setEast] = useState<Difficulty>('medium')
@@ -53,12 +57,21 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
       </section>
 
       <div className="lobby-actions">
+        {hasSavedMatch && (
+          <button
+            type="button"
+            className="btn primary resume-btn"
+            onClick={resume}
+          >
+            Resume match
+          </button>
+        )}
         <button
           type="button"
-          className="btn primary"
+          className={hasSavedMatch ? 'btn secondary' : 'btn primary'}
           onClick={() => start([west, north, east], mode)}
         >
-          Deal
+          {hasSavedMatch ? 'New match' : 'Deal'}
         </button>
         <button type="button" className="btn ghost" onClick={onShowRules}>
           How to play

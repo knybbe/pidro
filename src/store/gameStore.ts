@@ -19,6 +19,7 @@ import {
 
 const PLAY_BOT_DELAY_MS = 450
 const BID_DELAY_KEY = 'pidro-bid-delay-sec'
+const GAME_STATE_KEY = 'pidro-saved-game-state'
 
 export type BidDelaySec = 0 | 1 | 2 | 3
 
@@ -32,8 +33,41 @@ function loadBidDelay(): BidDelaySec {
   return 1
 }
 
+function loadSavedState(): GameState | null {
+  try {
+    const raw = localStorage.getItem(GAME_STATE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as GameState
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      parsed.phase &&
+      parsed.phase !== 'lobby' &&
+      Array.isArray(parsed.seats)
+    ) {
+      return parsed
+    }
+  } catch {
+    /* ignore invalid stored state */
+  }
+  return null
+}
+
+function saveSavedState(state: GameState | null): void {
+  try {
+    if (!state || state.phase === 'lobby') {
+      localStorage.removeItem(GAME_STATE_KEY)
+    } else {
+      localStorage.setItem(GAME_STATE_KEY, JSON.stringify(state))
+    }
+  } catch {
+    /* ignore storage quota/incognito errors */
+  }
+}
+
 interface GameStore {
   state: GameState
+  savedState: GameState | null
   botTimer: ReturnType<typeof setTimeout> | null
   /** Monotonic id so stale timeouts never apply */
   botEpoch: number
@@ -44,6 +78,7 @@ interface GameStore {
     difficulties: [Difficulty, Difficulty, Difficulty],
     gameMode?: GameMode,
   ) => void
+  resume: () => void
   bid: (bid: number | null) => void
   pickTrump: (suit: Suit) => void
   play: (cardId: string) => void
@@ -63,12 +98,16 @@ function applyHuman(
   updater: (state: GameState) => GameState,
 ) {
   const next = updater(get().state)
-  set({ state: next })
+  set({ state: next, savedState: next })
+  saveSavedState(next)
   queueMicrotask(() => get().kickBots())
 }
 
+const initialSaved = loadSavedState()
+
 export const useGameStore = create<GameStore>((set, get) => ({
-  state: createLobbyState(),
+  state: initialSaved || createLobbyState(),
+  savedState: initialSaved,
   botTimer: null,
   botEpoch: 0,
   bidDelaySec: loadBidDelay(),
@@ -88,8 +127,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       difficulties,
       gameMode,
     })
-    set({ state })
+    set({ state, savedState: state })
+    saveSavedState(state)
     queueMicrotask(() => get().kickBots())
+  },
+
+  resume: () => {
+    const saved = loadSavedState() || get().savedState
+    if (saved && saved.phase !== 'lobby') {
+      clearBot(get, set)
+      set({ state: saved, savedState: saved })
+      saveSavedState(saved)
+      queueMicrotask(() => get().kickBots())
+    }
   },
 
   bid: (bid) => {
@@ -108,7 +158,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.seats[seat].kind !== 'human') return
     try {
       const next = chooseTrump(state, seat, suit)
-      set({ state: next })
+      set({ state: next, savedState: next })
+      saveSavedState(next)
       queueMicrotask(() => get().kickBots())
     } catch (e) {
       console.error('pickTrump failed', e, { suit, phase: state.phase, seat })
@@ -123,7 +174,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.phase === 'trick_pause') {
       try {
         state = continueAfterTrick(state)
-        set({ state })
+        set({ state, savedState: state })
+        saveSavedState(state)
       } catch (e) {
         console.error('continue before play failed', e)
         return
@@ -140,7 +192,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     try {
       const next = playCard(state, state.currentSeat as Seat, cardId)
-      set({ state: next })
+      set({ state: next, savedState: next })
+      saveSavedState(next)
       queueMicrotask(() => get().kickBots())
     } catch (e) {
       // Card not legal after continue (e.g. not our lead) — leave advanced state
@@ -154,17 +207,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { state } = get()
     try {
       if (state.phase === 'trick_pause') {
-        set({ state: continueAfterTrick(state) })
+        const next = continueAfterTrick(state)
+        set({ state: next, savedState: next })
+        saveSavedState(next)
         queueMicrotask(() => get().kickBots())
         return
       }
       if (state.phase === 'hand_result') {
-        set({ state: nextHand(state) })
+        const next = nextHand(state)
+        set({ state: next, savedState: next })
+        saveSavedState(next)
         queueMicrotask(() => get().kickBots())
         return
       }
       if (state.phase === 'game_over') {
-        set({ state: rematch(state) })
+        const next = rematch(state)
+        set({ state: next, savedState: next })
+        saveSavedState(next)
         queueMicrotask(() => get().kickBots())
       }
     } catch (e) {
@@ -175,7 +234,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   doRematch: () => {
     clearBot(get, set)
     const state = rematch(get().state)
-    set({ state })
+    set({ state, savedState: state })
+    saveSavedState(state)
     queueMicrotask(() => get().kickBots())
   },
 
@@ -194,6 +254,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     scheduleBotStep(get, set)
   },
 }))
+
+if (initialSaved && initialSaved.phase !== 'lobby') {
+  queueMicrotask(() => {
+    useGameStore.getState().kickBots()
+  })
+}
 
 function actingSeat(state: GameState): Seat | null {
   if (state.phase === 'bidding' || state.phase === 'playing') {
@@ -262,7 +328,8 @@ function runBotOnce(
     }
   }
 
-  set({ state: next })
+  set({ state: next, savedState: next })
+  saveSavedState(next)
 
   // Chain: if still a bot's turn, queue the next step
   const again = actingSeat(get().state)
