@@ -473,12 +473,12 @@ button {
    * JS sets exact px, --felt-side, --ui-scale, and card size vars from felt side.
    */
   --ui-scale: 1;
-  --play-cw: 2.85rem;
-  --play-ch: 4.0rem;
-  --seat-cw: 2.85rem;
-  --seat-ch: 4.0rem;
-  --hand-cw: 3.15rem;
-  --hand-ch: 4.4rem;
+  --play-cw: 3.0rem;
+  --play-ch: 4.2rem;
+  --seat-cw: 3.0rem;
+  --seat-ch: 4.2rem;
+  --hand-cw: 3.0rem;
+  --hand-ch: 4.2rem;
   --dump-cw: 2.1rem;
   --dump-ch: 2.95rem;
   position: absolute;

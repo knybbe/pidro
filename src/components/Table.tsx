@@ -290,14 +290,14 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   ['--felt-side' as string]: `${feltSide}px`,
                   ['--ui-scale' as string]: String(uiScale),
                   // Primary card sizes (played / seat / hand / dump)
-                  ['--play-cw' as string]: `${(2.85 * uiScale).toFixed(3)}rem`,
-                  ['--play-ch' as string]: `${(4.0 * uiScale).toFixed(3)}rem`,
-                  ['--seat-cw' as string]: `${(2.85 * uiScale).toFixed(3)}rem`,
-                  ['--seat-ch' as string]: `${(4.0 * uiScale).toFixed(3)}rem`,
-                  ['--hand-cw' as string]: `${(3.3 * uiScale).toFixed(3)}rem`,
-                  ['--hand-ch' as string]: `${(4.6 * uiScale).toFixed(3)}rem`,
-                  ['--dump-cw' as string]: `${(2.25 * uiScale).toFixed(3)}rem`,
-                  ['--dump-ch' as string]: `${(3.15 * uiScale).toFixed(3)}rem`,
+                  ['--play-cw' as string]: `${(3.0 * uiScale).toFixed(3)}rem`,
+                  ['--play-ch' as string]: `${(4.2 * uiScale).toFixed(3)}rem`,
+                  ['--seat-cw' as string]: `${(3.0 * uiScale).toFixed(3)}rem`,
+                  ['--seat-ch' as string]: `${(4.2 * uiScale).toFixed(3)}rem`,
+                  ['--hand-cw' as string]: `${(3.0 * uiScale).toFixed(3)}rem`,
+                  ['--hand-ch' as string]: `${(4.2 * uiScale).toFixed(3)}rem`,
+                  ['--dump-cw' as string]: `${(2.1 * uiScale).toFixed(3)}rem`,
+                  ['--dump-ch' as string]: `${(2.95 * uiScale).toFixed(3)}rem`,
                 } as CSSProperties)
               : undefined
           }
