@@ -473,10 +473,10 @@ button {
    * JS sets exact px, --felt-side, --ui-scale, and card size vars from felt side.
    */
   --ui-scale: 1;
-  --play-cw: 3.85rem;
-  --play-ch: 5.4rem;
-  --seat-cw: 2.7rem;
-  --seat-ch: 3.8rem;
+  --play-cw: 2.85rem;
+  --play-ch: 4.0rem;
+  --seat-cw: 2.85rem;
+  --seat-ch: 4.0rem;
   --hand-cw: 3.15rem;
   --hand-ch: 4.4rem;
   --dump-cw: 2.1rem;
@@ -938,7 +938,7 @@ button {
 /* E/W play gutter lines up with deck backs (below name label) */
 .seat-slot.west .seat-play-gutter,
 .seat-slot.east .seat-play-gutter {
-  margin-top: calc(0.95rem * 1.2 + 10px);
+  margin-top: 0;
 }
 
 /*

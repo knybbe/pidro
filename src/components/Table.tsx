@@ -290,8 +290,8 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                   ['--felt-side' as string]: `${feltSide}px`,
                   ['--ui-scale' as string]: String(uiScale),
                   // Primary card sizes (played / seat / hand / dump)
-                  ['--play-cw' as string]: `${(4.0 * uiScale).toFixed(3)}rem`,
-                  ['--play-ch' as string]: `${(5.6 * uiScale).toFixed(3)}rem`,
+                  ['--play-cw' as string]: `${(2.85 * uiScale).toFixed(3)}rem`,
+                  ['--play-ch' as string]: `${(4.0 * uiScale).toFixed(3)}rem`,
                   ['--seat-cw' as string]: `${(2.85 * uiScale).toFixed(3)}rem`,
                   ['--seat-ch' as string]: `${(4.0 * uiScale).toFixed(3)}rem`,
                   ['--hand-cw' as string]: `${(3.3 * uiScale).toFixed(3)}rem`,
@@ -896,7 +896,7 @@ function SeatSlot({
   playedCards,
   coldRevealed,
 }: {
-  label: string
+  label: string | null
   hand: Card[]
   phase: Phase
   trump: Suit | null
@@ -1055,10 +1055,9 @@ function bidStatusFor(
 
 function seatLabel(
   _state: ReturnType<typeof useGameStore.getState>['state'],
-  seat: Seat,
+  _seat: Seat,
 ) {
-  const names = ['You', 'West', 'North', 'East']
-  return names[seat]
+  return null
 }
 
 function isActive(
