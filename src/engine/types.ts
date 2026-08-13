@@ -36,6 +36,7 @@ export function teamOf(seat: Seat): Team {
 }
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
+export type RiskLevel = 'low' | 'medium' | 'high'
 
 /** Classic: 9 cards, refill from stock after trump. Kokkola: +4 after bidding (pack empty). */
 export type GameMode = 'classic' | 'kokkola'
@@ -65,6 +66,7 @@ export interface TrickPlay {
 export interface SeatConfig {
   kind: 'human' | 'bot'
   difficulty?: Difficulty
+  biddingRisk?: RiskLevel
   name: string
 }
 

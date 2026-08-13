@@ -5,10 +5,12 @@ import {
   type Card,
   type Difficulty,
   type GameState,
+  type RiskLevel,
   type Seat,
   type Suit,
   isLeftPedro,
   isRightPedro,
+  isScoringTrump,
   isTrump,
   trumpStrength,
   cardPoints,
@@ -46,47 +48,73 @@ function chooseBid(
 
   const hand = state.hands[seat]
   const best = bestSuitStrength(hand)
+  const risk: RiskLevel = state.seats[seat].biddingRisk ?? 'medium'
 
   const high = state.highBid // null if nobody has bid yet
-  // Need this much "extra" strength to overcall an existing high bid
-  const overcallPenalty = high === null ? 0 : Math.max(0, high - 5) * 0.85
+
+  // Risk configuration:
+  // - low: conservative, requires strong hands, avoids overcalls, max 10
+  // - medium: balanced, standard calculation, max 12
+  // - high: aggressive, low overcall penalty, competes for contract, max 14
+  let overcallWeight = 0.85
+  let minStrength = 5.8
+  let maxBidCap = 12
+  let targetOffset = 0
+
+  if (risk === 'low') {
+    overcallWeight = 1.3
+    minStrength = 7.0
+    maxBidCap = 10
+    targetOffset = -0.5
+  } else if (risk === 'high') {
+    overcallWeight = 0.4
+    minStrength = 4.8
+    maxBidCap = 14
+    targetOffset = 0.8
+  }
+
+  const overcallPenalty =
+    high === null ? 0 : Math.max(0, high - 5) * overcallWeight
 
   if (diff === 'easy') {
     if (must) return legal[0]
-    // Often pass; occasional weak bid only if nothing is on the table yet
-    if (high !== null) return null
-    if (best.strength >= 5.5 && Math.random() < 0.4) {
-      return pickLegalBid(6 + Math.floor(Math.random() * 2), legal)
+    if (high !== null && risk !== 'high') return null
+    if (best.strength >= minStrength && (Math.random() < 0.65 || risk === 'high')) {
+      const want = Math.min(maxBidCap, Math.floor(best.strength + targetOffset))
+      return pickLegalBid(Math.max(6, want), legal)
     }
     return null
   }
 
   if (diff === 'medium') {
     if (must) return legal[0]
-    const target = Math.floor(best.strength - overcallPenalty)
-    if (target < 6) return null
-    // Prefer pass rather than stretching past comfortable range
-    if (high !== null && best.strength < high + 1.5) return null
-    return pickLegalBid(Math.min(11, target), legal)
+    let target = Math.floor(best.strength - overcallPenalty + targetOffset)
+    if (target < 6 || best.strength < minStrength) return null
+    const margin = risk === 'high' ? 0.0 : risk === 'low' ? 2.5 : 1.2
+    if (high !== null && best.strength < high + margin) return null
+    if (high !== null && target <= high && risk === 'high') target = high + 1
+    return pickLegalBid(Math.min(maxBidCap, target), legal)
   }
 
   // hard
   if (must) return legal[0]
-  const target = Math.round(best.strength - overcallPenalty * 0.6)
-  if (target < 6) return null
-  if (high !== null && best.strength < high + 0.8) return null
-  return pickLegalBid(Math.min(12, target), legal)
+  let target = Math.round(best.strength - overcallPenalty * 0.7 + targetOffset)
+  if (target < 6 || best.strength < minStrength) return null
+  const margin = risk === 'high' ? 0.0 : risk === 'low' ? 2.0 : 0.7
+  if (high !== null && best.strength < high + margin) return null
+  if (high !== null && target <= high && risk === 'high') target = high + 1
+  return pickLegalBid(Math.min(maxBidCap, target), legal)
 }
 
 /**
- * Choose a legal bid ≤ want. Never returns a bid below the legal minimum
- * (so overcalls always go higher). Returns null → pass.
+ * Choose a legal bid <= want. Never returns a bid below the legal minimum
+ * (so overcalls always go higher). Returns null -> pass.
  */
 function pickLegalBid(want: number, legal: number[]): number | null {
   if (legal.length === 0) return null
   const ok = legal.filter((b) => b <= want)
   if (ok.length) return ok[ok.length - 1]
-  // want is below the minimum legal overcall → pass
+  // want is below the minimum legal overcall -> pass
   return null
 }
 
@@ -133,6 +161,31 @@ function isPedro(card: Card, trump: Suit): boolean {
   return isRightPedro(card, trump) || isLeftPedro(card, trump)
 }
 
+/**
+ * Smear points to partner when partner's trick win is secure.
+ * Prioritizes 5-pt Pedros, then 10/Jack/2, then lowest cards.
+ */
+function bestSmear(sortedLowToHigh: Card[], trump: Suit): Card {
+  // 1. Throw Pedro (5 points)
+  const pedros = sortedLowToHigh.filter((c) => isPedro(c, trump))
+  if (pedros.length > 0) return pedros[0]
+
+  // 2. Throw other scoring cards (10, J, 2 - 1 point each)
+  const scoring = sortedLowToHigh.filter(
+    (c) => isScoringTrump(c, trump) && c.rank !== 'A',
+  )
+  if (scoring.length > 0) {
+    return [...scoring].sort(
+      (a, b) =>
+        cardPoints(b, trump) - cardPoints(a, trump) ||
+        trumpStrength(a, trump) - trumpStrength(b, trump),
+    )[0]
+  }
+
+  // 3. If no scoring cards, throw lowest non-point card
+  return sortedLowToHigh[0]
+}
+
 /** Lowest-strength card that is safe to lose (never throw a pedro if anything else exists). */
 function bestDump(sortedLowToHigh: Card[], trump: Suit): Card {
   // Prefer 0-point non-pedros, then lowest point non-pedro, pedro only if sole option
@@ -151,7 +204,57 @@ function bestDump(sortedLowToHigh: Card[], trump: Suit): Card {
   return sortedLowToHigh[0]
 }
 
-/** Cheapest card that currently beats `beating` (sorted low→high). */
+/** All trumps that have already been played in earlier tricks or current trick */
+function playedTrumps(state: GameState, trump: Suit): Set<string> {
+  const set = new Set<string>()
+  for (const trick of state.completedTricks) {
+    for (const p of trick) {
+      if (isTrump(p.card, trump)) set.add(p.card.id)
+    }
+  }
+  for (const p of state.currentTrick) {
+    if (isTrump(p.card, trump)) set.add(p.card.id)
+  }
+  return set
+}
+
+/** Check if a trump card is the highest remaining trump that could still be in an opponent's hand */
+function isBossTrump(card: Card, state: GameState, seat: Seat, trump: Suit): boolean {
+  const cardStr = trumpStrength(card, trump)
+  const fallen = playedTrumps(state, trump)
+  const myHand = new Set(state.hands[seat].map((c) => c.id))
+
+  const leftPedroSuit: Suit =
+    trump === 'S' ? 'C' : trump === 'C' ? 'S' : trump === 'H' ? 'D' : 'H'
+
+  const allTrumpCards: Card[] = [
+    { rank: 'A', suit: trump, id: `${trump}-A` },
+    { rank: 'K', suit: trump, id: `${trump}-K` },
+    { rank: 'Q', suit: trump, id: `${trump}-Q` },
+    { rank: 'J', suit: trump, id: `${trump}-J` },
+    { rank: '10', suit: trump, id: `${trump}-10` },
+    { rank: '9', suit: trump, id: `${trump}-9` },
+    { rank: '8', suit: trump, id: `${trump}-8` },
+    { rank: '7', suit: trump, id: `${trump}-7` },
+    { rank: '6', suit: trump, id: `${trump}-6` },
+    { rank: '5', suit: trump, id: `${trump}-5` },
+    { rank: '5', suit: leftPedroSuit, id: `${leftPedroSuit}-5` },
+    { rank: '4', suit: trump, id: `${trump}-4` },
+    { rank: '3', suit: trump, id: `${trump}-3` },
+    { rank: '2', suit: trump, id: `${trump}-2` },
+  ]
+
+  for (const t of allTrumpCards) {
+    if (trumpStrength(t, trump) > cardStr) {
+      if (!fallen.has(t.id) && !myHand.has(t.id)) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
+/** Cheapest card that currently beats `beating` (sorted low->high). */
 function cheapestWinner(
   sortedLowToHigh: Card[],
   beating: Card,
@@ -171,7 +274,7 @@ function choosePlay(
   const legal = legalPlays(state, seat)
   if (legal.length === 0) throw new Error('No legal plays')
   const trump = state.trump!
-  // Low → high trump strength
+  // Low -> high trump strength
   const sorted = [...legal].sort(
     (a, b) => trumpStrength(a, trump) - trumpStrength(b, trump),
   )
@@ -183,7 +286,7 @@ function choosePlay(
 
   // —— Lead ——
   if (trick.length === 0) {
-    return chooseLead(sorted, trump, diff).id
+    return chooseLead(sorted, state, seat, trump, diff).id
   }
 
   // Current winner on the table
@@ -206,16 +309,31 @@ function choosePlay(
     (s) => !played.has(s) && s !== seat,
   )
   const lastToPlay = othersLeft.length === 0
+  const opponentsBehind = othersLeft.some((s) => s % 2 !== seat % 2)
 
-  // —— Partner already winning: never overtrump; dump junk ——
-  // (Hard used to always "needWin" and climb over partner.)
+  // —— Partner already winning ——
   if (partnerWinning) {
+    const isAce = winning.card.rank === 'A' && isTrump(winning.card, trump)
+    const isBoss = isBossTrump(winning.card, state, seat, trump)
+
+    // Smear points (Pedros first!) if partner's win is secure:
+    // - Partner played the Ace of trump
+    // - Partner's card is boss (highest remaining trump)
+    // - We are last to play in the trick
+    // - No opponents remain behind us in this trick
+    const partnerSafe = isAce || isBoss || lastToPlay || !opponentsBehind
+
+    if (partnerSafe) {
+      return bestSmear(sorted, trump).id
+    }
+
+    // Partner is winning but an opponent behind could beat it: safely dump non-pedro trash
     return bestDump(sorted, trump).id
   }
 
   // —— We can take the trick ——
   if (win) {
-    // Never spend a pedro to win a worthless trick — dump instead
+    // Never spend a pedro to win a worthless trick unless last or necessary — dump instead
     if (isPedro(win, trump) && pointsInTrick === 0 && !pedroInTrick) {
       const nonPedroWin = sorted.find(
         (c) =>
@@ -223,7 +341,7 @@ function choosePlay(
           trumpStrength(c, trump) > trumpStrength(winning.card, trump),
       )
       if (nonPedroWin) return nonPedroWin.id
-      return bestDump(sorted, trump).id
+      if (!lastToPlay && diff !== 'easy') return bestDump(sorted, trump).id
     }
 
     // Prefer a non-pedro winner when the cheapest winner is a pedro
@@ -236,10 +354,11 @@ function choosePlay(
       if (nonPedroWin) return nonPedroWin.id
     }
 
-    // Easy: take when points/pedro at stake or last; otherwise often dump
+    // Easy: take when points/pedro at stake or last; otherwise often take
     if (diff === 'easy') {
-      if (pedroInTrick || pointsInTrick >= 2 || lastToPlay) return win.id
-      if (!isPedro(win, trump) && Math.random() < 0.55) return win.id
+      if (pedroInTrick || pointsInTrick >= 1 || lastToPlay || Math.random() < 0.6) {
+        return win.id
+      }
       return bestDump(sorted, trump).id
     }
 
@@ -258,20 +377,28 @@ function choosePlay(
 
 function chooseLead(
   sortedLowToHigh: Card[],
+  state: GameState,
+  seat: Seat,
   trump: Suit,
   diff: Difficulty,
 ): Card {
-  // Easy: lead low non-point
-  if (diff === 'easy') {
-    return bestDump(sortedLowToHigh, trump)
-  }
-  const ace = sortedLowToHigh.find((c) => c.rank === 'A')
+  // 1. Ace of Trump is the best lead in the game: pulls trumps & lets partner smear Pedro
+  const ace = sortedLowToHigh.find((c) => c.rank === 'A' && isTrump(c, trump))
   if (ace) return ace
-  if (diff === 'hard') {
+
+  if (diff === 'medium' || diff === 'hard') {
+    // 2. Boss trump (e.g. King when Ace already fallen): pull remaining trumps
+    const boss = sortedLowToHigh.find(
+      (c) => !isPedro(c, trump) && isBossTrump(c, state, seat, trump),
+    )
+    if (boss) return boss
+
+    // 3. On Hard: lead King if we have length to draw out opposing high cards
     const king = sortedLowToHigh.find((c) => c.rank === 'K')
-    if (king) return king
+    if (king && diff === 'hard' && sortedLowToHigh.length >= 3) return king
   }
-  // Low non-point, never lead pedro if anything else exists
+
+  // Never lead a Pedro if anything else exists
   return bestDump(sortedLowToHigh, trump)
 }
 

@@ -13,6 +13,7 @@ import {
   type Difficulty,
   type GameMode,
   type GameState,
+  type RiskLevel,
   type Seat,
   type Suit,
 } from '../engine'
@@ -77,6 +78,7 @@ interface GameStore {
   start: (
     difficulties: [Difficulty, Difficulty, Difficulty],
     gameMode?: GameMode,
+    biddingRisk?: RiskLevel,
   ) => void
   resume: () => void
   bid: (bid: number | null) => void
@@ -121,12 +123,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  start: (difficulties, gameMode = 'classic') => {
+  start: (difficulties, gameMode = 'classic', biddingRisk = 'medium') => {
     clearBot(get, set)
-    const state = startMatch(createLobbyState(undefined, undefined, gameMode), {
-      difficulties,
-      gameMode,
-    })
+    const state = startMatch(
+      createLobbyState(undefined, undefined, gameMode),
+      {
+        difficulties,
+        biddingRisk,
+        gameMode,
+      },
+    )
     set({ state, savedState: state })
     saveSavedState(state)
     queueMicrotask(() => get().kickBots())

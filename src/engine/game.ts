@@ -17,6 +17,7 @@ import type {
   Difficulty,
   GameMode,
   GameState,
+  RiskLevel,
   Seat,
   SeatConfig,
   Suit,
@@ -24,7 +25,7 @@ import type {
 } from './types'
 import { teamOf } from './types'
 
-export type { GameMode }
+export type { GameMode, RiskLevel }
 
 function emptyHands(): [Card[], Card[], Card[], Card[]] {
   return [[], [], [], []]
@@ -64,13 +65,14 @@ export function defaultSeats(
     'medium',
     'medium',
   ],
+  biddingRisk: RiskLevel = 'medium',
 ): [SeatConfig, SeatConfig, SeatConfig, SeatConfig] {
   // 0 South human, 1 West bot, 2 North bot, 3 East bot
   return [
     { kind: 'human', name: 'You' },
-    { kind: 'bot', difficulty: difficulties[0], name: 'West' },
-    { kind: 'bot', difficulty: difficulties[1], name: 'North' },
-    { kind: 'bot', difficulty: difficulties[2], name: 'East' },
+    { kind: 'bot', difficulty: difficulties[0], biddingRisk, name: 'West' },
+    { kind: 'bot', difficulty: difficulties[1], biddingRisk, name: 'North' },
+    { kind: 'bot', difficulty: difficulties[2], biddingRisk, name: 'East' },
   ]
 }
 
@@ -114,11 +116,12 @@ export function startMatch(
   options?: {
     seed?: number
     difficulties?: [Difficulty, Difficulty, Difficulty]
+    biddingRisk?: RiskLevel
     gameMode?: GameMode
   },
 ): GameState {
   const seats = options?.difficulties
-    ? defaultSeats(options.difficulties)
+    ? defaultSeats(options.difficulties, options.biddingRisk ?? 'medium')
     : state.seats
   const seed = options?.seed ?? Date.now()
   const gameMode = options?.gameMode ?? state.gameMode ?? 'classic'

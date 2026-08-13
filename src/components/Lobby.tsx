@@ -1,18 +1,24 @@
 import { useState } from 'react'
-import type { Difficulty, GameMode } from '../engine'
+import type { Difficulty, GameMode, RiskLevel } from '../engine'
 import { useGameStore } from '../store/gameStore'
 
 const LEVELS: Difficulty[] = ['easy', 'medium', 'hard']
+const RISKS: { key: RiskLevel; label: string }[] = [
+  { key: 'low', label: 'Low' },
+  { key: 'medium', label: 'Medium' },
+  { key: 'high', label: 'High' },
+]
 
 export function Lobby({ onShowRules }: { onShowRules: () => void }) {
   const start = useGameStore((s) => s.start)
   const resume = useGameStore((s) => s.resume)
   const hasSavedMatch = useGameStore(
-    (s) => Boolean(s.savedState && s.savedState.phase !== 'lobby')
+    (s) => Boolean(s.savedState && s.savedState.phase !== 'lobby'),
   )
   const [west, setWest] = useState<Difficulty>('medium')
   const [north, setNorth] = useState<Difficulty>('medium')
   const [east, setEast] = useState<Difficulty>('medium')
+  const [risk, setRisk] = useState<RiskLevel>('medium')
   const [mode, setMode] = useState<GameMode>('classic')
 
   return (
@@ -49,11 +55,28 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
       </section>
 
       <section className="panel">
-        <h2>Robot opponents</h2>
+        <h2>Robot players</h2>
         <p className="hint">You sit South. Partner is North.</p>
         <DifficultyRow label="West (opponent)" value={west} onChange={setWest} />
         <DifficultyRow label="North (partner)" value={north} onChange={setNorth} />
         <DifficultyRow label="East (opponent)" value={east} onChange={setEast} />
+      </section>
+
+      <section className="panel">
+        <h2>Bidding risk</h2>
+        <p className="hint">How aggressively robot players bid on hands.</p>
+        <div className="diff-pills" role="group" aria-label="Bidding risk">
+          {RISKS.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              className={`pill ${risk === r.key ? 'active' : ''}`}
+              onClick={() => setRisk(r.key)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <div className="lobby-actions">
@@ -69,7 +92,7 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
         <button
           type="button"
           className={hasSavedMatch ? 'btn secondary' : 'btn primary'}
-          onClick={() => start([west, north, east], mode)}
+          onClick={() => start([west, north, east], mode, risk)}
         >
           {hasSavedMatch ? 'New match' : 'Deal'}
         </button>
