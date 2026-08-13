@@ -473,14 +473,14 @@ button {
    * JS sets exact px, --felt-side, --ui-scale, and card size vars from felt side.
    */
   --ui-scale: 1;
-  --play-cw: 3.0rem;
-  --play-ch: 4.2rem;
-  --seat-cw: 3.0rem;
-  --seat-ch: 4.2rem;
-  --hand-cw: 3.0rem;
-  --hand-ch: 4.2rem;
-  --dump-cw: 2.1rem;
-  --dump-ch: 2.95rem;
+  --play-cw: 3.35rem;
+  --play-ch: 4.7rem;
+  --seat-cw: 3.35rem;
+  --seat-ch: 4.7rem;
+  --hand-cw: 3.35rem;
+  --hand-ch: 4.7rem;
+  --dump-cw: 2.5rem;
+  --dump-ch: 3.5rem;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -701,6 +701,7 @@ button {
   z-index: 2;
   justify-self: center;
   align-self: start;
+  margin-top: calc(6px * var(--ui-scale, 1));
 }
 
 .grid-west {
@@ -708,7 +709,7 @@ button {
   justify-self: start;
   align-self: center;
   z-index: 2;
-  padding-left: calc(10px * var(--ui-scale, 1));
+  padding-left: calc(4px * var(--ui-scale, 1));
 }
 
 .grid-east {
@@ -716,7 +717,7 @@ button {
   justify-self: end;
   align-self: center;
   z-index: 2;
-  padding-right: calc(10px * var(--ui-scale, 1));
+  padding-right: calc(4px * var(--ui-scale, 1));
 }
 
 .grid-center {
@@ -749,6 +750,7 @@ button {
   justify-content: flex-end;
   overflow: visible;
   align-self: end;
+  margin-bottom: calc(6px * var(--ui-scale, 1));
 }
 
 /* Centered hand / match result banner covering 80% of board width & height (topmost element always) */
@@ -1363,8 +1365,8 @@ button {
     'w c e'
     '. s .';
   /* ~50% pile-to-pile overlap toward center */
-  column-gap: calc(var(--dump-cw) * -0.35);
-  row-gap: calc(var(--dump-ch) * -0.3);
+  column-gap: calc(var(--dump-cw) * -0.15);
+  row-gap: calc(var(--dump-ch) * -0.45);
   align-items: center;
   justify-items: center;
   flex-shrink: 1;
