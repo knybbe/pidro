@@ -410,7 +410,7 @@ describe('Kokkola mode', () => {
     expect(dumpTotal).toBeGreaterThan(0)
   })
 
-  it('dumpPiles are never contaminated by played trick cards and players hold only trumps after refill', () => {
+  it('dumpPiles are never contaminated by played trick cards and players hold 6 cards total after refill', () => {
     let s = startMatch(createLobbyState(12345))
     s = placeBid(s, 1, 6)
     s = placeBid(s, 2, null)
@@ -419,11 +419,9 @@ describe('Kokkola mode', () => {
     s = chooseTrump(s, 1, 'H') // trump = Hearts
 
     expect(s.phase).toBe('playing')
-    // After refill, all cards in hands MUST be trumps
+    // After refill, every player MUST have 6 cards total in hand
     for (let i = 0; i < 4; i++) {
-      for (const card of s.hands[i]) {
-        expect(isTrump(card, s.trump!)).toBe(true)
-      }
+      expect(s.hands[i].length).toBe(6)
     }
 
     const initialDumpCount = s.dumpPiles.reduce((n, p) => n + p.length, 0)

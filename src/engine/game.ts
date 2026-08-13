@@ -341,12 +341,8 @@ export function performDiscardAndRefill(state: GameState): GameState {
     for (let i = 0; i < 3; i++) {
       while (hands[s].length < HAND_SIZE_AFTER_DISCARD && stock.length > 0) {
         const drawn = stock.shift()!
-        if (isTrump(drawn, trump)) {
-          hands[s].push(drawn)
-          purchasedIds.push(drawn.id)
-        } else {
-          dumpPiles[s].push(drawn)
-        }
+        hands[s].push(drawn)
+        purchasedIds.push(drawn.id)
       }
       s = nextSeat(s)
     }
@@ -377,7 +373,7 @@ export function performDiscardAndRefill(state: GameState): GameState {
   }
 
   const activeSeats = ([0, 1, 2, 3] as Seat[]).filter(
-    (seat) => trumpsInHand(hands[seat], trump).length > 0,
+    (seat) => hands[seat].length > 0,
   )
 
   // Award low point to holder's team immediately at start of play
@@ -528,20 +524,18 @@ export function legalPlays(state: GameState, seat: Seat): Card[] {
   // Allow the current actor even if activeSeats got out of sync (recovery).
   if (!state.activeSeats.includes(seat) && state.currentSeat !== seat) return []
   const trumps = trumpsInHand(state.hands[seat], state.trump)
-  if (trumps.length === 0) return []
-
-  // Pidro: only trumps are played. A singleton is always the only legal card.
-  // Defenders (opponents of the bidder) with exactly one trump must play it
-  // on the opening trick — they cannot "save" it for later.
-  if (
-    isOpeningTrick(state) &&
-    isOpponentOfBidder(state, seat) &&
-    trumps.length === 1
-  ) {
+  if (trumps.length > 0) {
+    if (
+      isOpeningTrick(state) &&
+      isOpponentOfBidder(state, seat) &&
+      trumps.length === 1
+    ) {
+      return trumps
+    }
     return trumps
   }
 
-  return trumps
+  return state.hands[seat]
 }
 
 /** True while the first trick of the hand is still being played. */
@@ -623,9 +617,9 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
 
   const completedTricks = [...state.completedTricks, currentTrick]
 
-  // Update active seats (have trumps left)
+  // Update active seats (have cards left)
   let activeSeats = ([0, 1, 2, 3] as Seat[]).filter(
-    (s) => trumpsInHand(hands[s], trump).length > 0,
+    (s) => hands[s].length > 0,
   )
 
   // If winner has no trumps left, lead passes to next active clockwise
@@ -677,7 +671,7 @@ export function continueAfterTrick(state: GameState): GameState {
 
   // Ensure leader still has trumps; otherwise pass lead clockwise among active
   const active = state.activeSeats.filter(
-    (s) => trumpsInHand(state.hands[s], trump).length > 0,
+    (s) => state.hands[s].length > 0,
   )
   if (leader !== null && !active.includes(leader)) {
     leader = nextActiveFrom(leader, active) ?? winner
@@ -708,7 +702,7 @@ export function continueAfterTrick(state: GameState): GameState {
   const handOver =
     active.length === 0 ||
     ([0, 1, 2, 3] as Seat[]).every(
-      (s) => trumpsInHand(state.hands[s], trump).length === 0,
+      (s) => state.hands[s].length === 0,
     )
 
   if (handOver) {
