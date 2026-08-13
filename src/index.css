@@ -843,13 +843,13 @@ button {
 
 .seat-slot.west {
   flex-direction: row;
-  align-items: flex-start; /* played card top = deck top */
+  align-items: center;
   gap: calc(10px * var(--ui-scale, 1));
 }
 
 .seat-slot.east {
-  flex-direction: row; /* DOM is already played then deck */
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: calc(10px * var(--ui-scale, 1));
 }
 
