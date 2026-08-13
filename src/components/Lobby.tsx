@@ -2,10 +2,14 @@ import { useState } from 'react'
 import type { BotConfig, Difficulty, GameMode, RiskLevel } from '../engine'
 import { useGameStore } from '../store/gameStore'
 
-const LEVELS: Difficulty[] = ['easy', 'medium', 'hard']
+const LEVELS: { key: Difficulty; label: string }[] = [
+  { key: 'easy', label: 'Easy' },
+  { key: 'medium', label: 'Mid' },
+  { key: 'hard', label: 'Hard' },
+]
 const RISKS: { key: RiskLevel; label: string }[] = [
   { key: 'low', label: 'Low' },
-  { key: 'medium', label: 'Med' },
+  { key: 'medium', label: 'Mid' },
   { key: 'high', label: 'High' },
 ]
 
@@ -138,12 +142,12 @@ function BotConfigRow({
           <div className="mini-pills" role="group" aria-label={`${name} skill`}>
             {LEVELS.map((lvl) => (
               <button
-                key={lvl}
+                key={lvl.key}
                 type="button"
-                className={`pill mini-pill ${diff === lvl ? 'active' : ''}`}
-                onClick={() => onChange({ ...config, difficulty: lvl })}
+                className={`pill mini-pill ${diff === lvl.key ? 'active' : ''}`}
+                onClick={() => onChange({ ...config, difficulty: lvl.key })}
               >
-                {lvl}
+                {lvl.label}
               </button>
             ))}
           </div>

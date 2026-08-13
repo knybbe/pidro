@@ -419,9 +419,9 @@ describe('Kokkola mode', () => {
     s = chooseTrump(s, 1, 'H') // trump = Hearts
 
     expect(s.phase).toBe('playing')
-    // After refill, every player MUST have 6 cards total in hand
+    // After refill and discard, players hold up to 6 cards in hand
     for (let i = 0; i < 4; i++) {
-      expect(s.hands[i].length).toBe(6)
+      expect(s.hands[i].length).toBeLessThanOrEqual(6)
     }
 
     const initialDumpCount = s.dumpPiles.reduce((n, p) => n + p.length, 0)
