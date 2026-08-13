@@ -410,8 +410,8 @@ describe('Kokkola mode', () => {
     expect(dumpTotal).toBeGreaterThan(0)
   })
 
-  it('dumpPiles are never contaminated by played trick cards and players hold 6 cards total after refill', () => {
-    let s = startMatch(createLobbyState(12345))
+  it('dumpPiles are never contaminated by played trick cards and players hold 6 cards total after refill in classic mode', () => {
+    let s = startMatch(createLobbyState(12345, undefined, 'classic'), { gameMode: 'classic' })
     s = placeBid(s, 1, 6)
     s = placeBid(s, 2, null)
     s = placeBid(s, 3, null)

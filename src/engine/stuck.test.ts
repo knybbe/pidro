@@ -4,63 +4,74 @@ import {
   continueAfterTrick,
   createLobbyState,
   legalPlays,
+  nextHand,
   placeBid,
   playCard,
   startMatch,
 } from './game'
+import { botAct } from '../ai'
 import { trumpsInHand } from './rules'
 
-describe('stuck detection', () => {
-  it('never leaves a seat with empty legalPlays during play', () => {
+describe('full match simulation and stuck detection', () => {
+  it('simulates 500 full hands with botAct without errors or stuck states', () => {
     const failures: unknown[] = []
-    for (let seed = 1; seed <= 400; seed++) {
-      let s = startMatch(createLobbyState(seed), { seed })
+    for (let seed = 1; seed <= 500; seed++) {
+      const mode = seed % 2 === 0 ? 'classic' : 'kokkola'
+      let s = startMatch(createLobbyState(seed, undefined, mode), { seed, gameMode: mode })
       try {
-        while (s.phase === 'bidding') {
-          const seat = s.currentSeat!
-          if (seat === 0) s = placeBid(s, 0, s.highBid === null ? 6 : null)
-          else
-            s = placeBid(
-              s,
-              seat,
-              s.highBid === null && seat === 1 ? 6 : null,
-            )
-        }
-        if (s.phase === 'choose_trump') {
-          const suit = s.hands[s.bidder!][0]?.suit ?? 'S'
-          s = chooseTrump(s, s.bidder!, suit)
-        }
-        let guard = 0
-        while (
-          (s.phase === 'playing' || s.phase === 'trick_pause') &&
-          guard++ < 400
-        ) {
-          if (s.phase === 'trick_pause') {
-            s = continueAfterTrick(s)
-            continue
+        let handGuard = 0
+        while (s.phase !== 'game_over' && handGuard++ < 30) {
+          while (s.phase === 'bidding') {
+            const seat = s.currentSeat!
+            const act = botAct(s, seat)
+            if (act.type === 'bid') s = placeBid(s, seat, act.bid)
+            else s = placeBid(s, seat, null)
           }
-          const seat = s.currentSeat
-          if (seat === null) {
-            failures.push({ seed, msg: 'null seat', phase: s.phase })
-            break
+          if (s.phase === 'choose_trump') {
+            const bidder = s.bidder!
+            const act = botAct(s, bidder)
+            if (act.type === 'trump') s = chooseTrump(s, bidder, act.suit)
+            else s = chooseTrump(s, bidder, 'S')
           }
-          const legal = legalPlays(s, seat)
-          if (legal.length === 0) {
-            failures.push({
-              seed,
-              seat,
-              active: [...s.activeSeats],
-              leader: s.trickLeader,
-              trick: s.currentTrick.map((p) => p.seat),
-              trump: s.trump,
-              trumpCounts: s.hands.map((h) =>
-                trumpsInHand(h, s.trump!).length,
-              ),
-              message: s.message,
-            })
-            break
+          let trickGuard = 0
+          while (
+            (s.phase === 'playing' || s.phase === 'trick_pause') &&
+            trickGuard++ < 200
+          ) {
+            if (s.phase === 'trick_pause') {
+              s = continueAfterTrick(s)
+              continue
+            }
+            const seat = s.currentSeat
+            if (seat === null) {
+              failures.push({ seed, msg: 'null currentSeat', phase: s.phase })
+              break
+            }
+            const legal = legalPlays(s, seat)
+            if (legal.length === 0) {
+              failures.push({
+                seed,
+                seat,
+                active: [...s.activeSeats],
+                leader: s.trickLeader,
+                trump: s.trump,
+                trumpCounts: s.hands.map((h) => trumpsInHand(h, s.trump!).length),
+              })
+              break
+            }
+            const act = botAct(s, seat)
+            if (act.type === 'play') s = playCard(s, seat, act.cardId)
+            else s = playCard(s, seat, legal[0].id)
           }
-          s = playCard(s, seat, legal[0].id)
+
+          if (s.phase === 'hand_result') {
+            // Verify points taken add up to 14
+            const totalPts = s.pointsTaken[0] + s.pointsTaken[1]
+            if (totalPts !== 14) {
+              failures.push({ seed, msg: `Points sum is ${totalPts}, expected 14`, hand: s.handHistory.length })
+            }
+            s = nextHand(s)
+          }
         }
       } catch (e) {
         failures.push({
@@ -68,11 +79,11 @@ describe('stuck detection', () => {
           error: String(e),
           phase: s.phase,
           seat: s.currentSeat,
-          trick: s.currentTrick.map((p) => p.seat),
           active: [...s.activeSeats],
         })
       }
     }
+
     if (failures.length) {
       console.error(JSON.stringify(failures.slice(0, 5), null, 2))
     }

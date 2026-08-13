@@ -924,9 +924,7 @@ function SeatSlot({
   // After discard: keep showing face-down cards until coldRevealed is true for this seat
   // so a player only shows out of cards when play order reaches them on their turn.
   const biddingLike = phase === 'bidding' || phase === 'choose_trump'
-  const count = biddingLike
-    ? 9
-    : (!coldRevealed && hand.length === 0 ? 1 : hand.length)
+  const count = biddingLike ? 9 : hand.length
   const cold =
     coldRevealed &&
     !biddingLike &&
