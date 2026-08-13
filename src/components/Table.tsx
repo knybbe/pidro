@@ -95,8 +95,11 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
     return new Set<string>()
   })()
 
-  /** Only trick pauses use click-anywhere / Space; hand/game end use the banner Deal button */
-  const showContinue = state.phase === 'trick_pause'
+  /** Trick pauses, hand end, and game end can click anywhere / Space / Enter to advance */
+  const showContinue =
+    state.phase === 'trick_pause' ||
+    state.phase === 'hand_result' ||
+    state.phase === 'game_over'
   const showHandBanner =
     state.phase === 'hand_result' || state.phase === 'game_over'
 
@@ -623,7 +626,7 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
           </div>
 
           {/* Result Banner — direct child of .felt, topmost element always, 80% of board width & height */}
-          {showHandBanner && state.handResult && lastHistory && (
+          {showHandBanner && state.handResult && (
             <div
               className={`round-banner ${state.phase === 'game_over' ? 'game-over' : 'hand-end'}`}
               role="dialog"
@@ -690,8 +693,9 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
                     {state.handResult.made ? 'Bid made' : 'Set!'}
                   </h2>
                   <p className="round-banner-sub">
-                    {SEAT_LETTER[lastHistory.bidder]}
-                    {lastHistory.bid}
+                    {lastHistory
+                      ? `${SEAT_LETTER[lastHistory.bidder]}${lastHistory.bid}`
+                      : ''}
                     {state.trump
                       ? ` · ${suitSymbol(state.trump)} ${suitName(state.trump)}`
                       : ''}
@@ -917,10 +921,12 @@ function SeatSlot({
   coldRevealed: boolean
 }) {
   // Bidding / trump pick: always 9 face-down (Kokkola +4 stay hidden until trump).
-  // After discard: at most 6. Never show 13.
-  // Leftover non-trumps turn face-up when coldRevealed (their would-be turn).
+  // After discard: keep showing face-down cards until coldRevealed is true for this seat
+  // so a player only shows out of cards when play order reaches them on their turn.
   const biddingLike = phase === 'bidding' || phase === 'choose_trump'
-  const count = biddingLike ? 9 : hand.length
+  const count = biddingLike
+    ? 9
+    : (!coldRevealed && hand.length === 0 ? 1 : hand.length)
   const cold =
     coldRevealed &&
     !biddingLike &&
