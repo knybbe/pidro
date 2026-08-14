@@ -15,7 +15,7 @@ import { trumpsInHand } from './rules'
 describe('full match simulation and stuck detection', () => {
   it('simulates 500 full hands with botAct without errors or stuck states', () => {
     const failures: unknown[] = []
-    for (let seed = 1; seed <= 500; seed++) {
+    for (let seed = 1; seed <= 2000; seed++) {
       const mode = seed % 2 === 0 ? 'classic' : 'kokkola'
       let s = startMatch(createLobbyState(seed, undefined, mode), { seed, gameMode: mode })
       try {
@@ -59,16 +59,22 @@ describe('full match simulation and stuck detection', () => {
               })
               break
             }
-            const act = botAct(s, seat)
-            if (act.type === 'play') s = playCard(s, seat, act.cardId)
-            else s = playCard(s, seat, legal[0].id)
+            // Mix botAct and random play
+            if (seed % 3 === 0) {
+              const pick = legal[Math.floor(Math.random() * legal.length)]
+              s = playCard(s, seat, pick.id)
+            } else {
+              const act = botAct(s, seat)
+              if (act.type === 'play') s = playCard(s, seat, act.cardId)
+              else s = playCard(s, seat, legal[0].id)
+            }
           }
 
           if (s.phase === 'hand_result') {
             // Verify points taken add up to 14
             const totalPts = s.pointsTaken[0] + s.pointsTaken[1]
             if (totalPts !== 14) {
-              failures.push({ seed, msg: `Points sum is ${totalPts}, expected 14`, hand: s.handHistory.length })
+              failures.push({ seed, msg: `Points sum is ${totalPts}, expected 14 (got [${s.pointsTaken[0]}, ${s.pointsTaken[1]}])`, hand: s.handHistory.length })
             }
             s = nextHand(s)
           }
