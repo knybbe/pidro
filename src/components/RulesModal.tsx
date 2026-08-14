@@ -26,9 +26,10 @@ export function RulesModal({ open, onClose }: Props) {
           </p>
           <h3>Points (14 per hand)</h3>
           <ul>
-            <li>Ace, Jack, Ten, Two of trump — 1 each</li>
-            <li>Right 5 (trump 5) — 5</li>
-            <li>Left 5 (same-color 5) — 5 · also a trump</li>
+            <li>Ace, Jack, Ten of trump — 1 each (scored by trick winner)</li>
+            <li>Right 5 (trump 5) — 5 (scored by trick winner)</li>
+            <li>Left 5 (same-color 5) — 5 · also a trump (scored by trick winner)</li>
+            <li>Two of trump — 1 (always scored by the player/team who plays it)</li>
           </ul>
           <h3>Bidding</h3>
           <p>

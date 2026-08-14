@@ -116,6 +116,79 @@ describe('scoring', () => {
     expect(matchWinner([62, 50], 1, 62)).toBe(0)
     expect(matchWinner([50, 50], 0, 62)).toBe(null)
   })
+
+  it('2 of trump (Low) awards point to the player who played it even if opponent wins with Ace', () => {
+    let s = startMatch(createLobbyState(42), { seed: 42 })
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+    s = chooseTrump(s, 1, 'H') // trump = Hearts
+
+    const aceH = makeCard('H', 'A')
+    const twoH = makeCard('H', '2')
+    const sixH = makeCard('H', '6')
+    const sevenH = makeCard('H', '7')
+
+    // West (seat 1) has Ace, South (seat 0) has 2, North (seat 2) has 6, East (seat 3) has 7
+    s = {
+      ...s,
+      hands: [[twoH], [aceH], [sixH], [sevenH]],
+      activeSeats: [1, 2, 3, 0],
+      currentSeat: 1,
+      trickLeader: 1,
+      currentTrick: [],
+      completedTricks: [],
+      pointsTaken: [0, 0],
+      phase: 'playing',
+    }
+
+    // West leads Ace (1 pt)
+    s = playCard(s, 1, aceH.id)
+    // North plays 6 (0 pt)
+    s = playCard(s, 2, sixH.id)
+    // East plays 7 (0 pt)
+    s = playCard(s, 3, sevenH.id)
+    // South plays 2 (1 pt)
+    s = playCard(s, 0, twoH.id)
+
+    expect(s.phase).toBe('trick_pause')
+    // West (Team 1) won the trick with Ace -> gets 1 pt for Ace
+    // South (Team 0) played 2 of trump -> gets 1 pt for 2
+    expect(s.pointsTaken).toEqual([1, 1])
+  })
+
+  it('2 of trump awards point to player who played it when opponent wins with Pedro', () => {
+    let s = startMatch(createLobbyState(42), { seed: 42 })
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+    s = chooseTrump(s, 1, 'H')
+
+    const pedroH = makeCard('H', '5')
+    const twoH = makeCard('H', '2')
+
+    s = {
+      ...s,
+      hands: [[twoH], [pedroH], [], []],
+      activeSeats: [1, 0],
+      currentSeat: 1,
+      trickLeader: 1,
+      currentTrick: [],
+      completedTricks: [],
+      pointsTaken: [0, 0],
+      phase: 'playing',
+    }
+
+    s = playCard(s, 1, pedroH.id)
+    s = playCard(s, 0, twoH.id)
+
+    expect(s.phase).toBe('trick_pause')
+    // Team 1 (West) wins trick with Pedro -> 5 points
+    // Team 0 (South) played 2 of trump -> 1 point
+    expect(s.pointsTaken).toEqual([1, 5])
+  })
 })
 
 describe('bidding', () => {

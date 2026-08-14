@@ -644,7 +644,14 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
   let pointsTaken = [...state.pointsTaken] as [number, number]
   for (const p of currentTrick) {
     const pts = cardPoints(p.card, trump)
-    pointsTaken[teamOf(winner)] += pts
+    if (pts > 0) {
+      if (p.card.rank === '2') {
+        // In Pidro, the 2 of trump (Low) always scores for the team that played it
+        pointsTaken[teamOf(p.seat)] += pts
+      } else {
+        pointsTaken[teamOf(winner)] += pts
+      }
+    }
   }
 
   const completedTricks = [...state.completedTricks, currentTrick]
