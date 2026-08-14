@@ -1079,7 +1079,7 @@ button {
 }
 
 .seat-cards .seat-card-wrap .card .card-rank {
-  font-size: clamp(0.7rem, calc(100cqi * 0.28), 0.95rem);
+  font-size: clamp(0.98rem, calc(100cqi * 0.39), 1.33rem);
 }
 
 /*
@@ -1533,7 +1533,7 @@ button {
 }
 
 .dump-card .card .card-rank {
-  font-size: max(0.55rem, calc(0.62rem * var(--ui-scale, 1)));
+  font-size: max(0.77rem, calc(0.87rem * var(--ui-scale, 1)));
   top: 0.06rem;
   left: 0.08rem;
 }
@@ -2008,14 +2008,14 @@ button.card.black {
   color: #111111;
 }
 
-/* Rank top-left */
+/* Rank top-left (40% larger for better readability) */
 .card-rank {
   position: absolute;
-  top: 0.2rem;
-  left: 0.28rem;
+  top: 0.18rem;
+  left: 0.24rem;
   z-index: 3;
   font-weight: 800;
-  font-size: max(0.6rem, calc(100cqi * 0.28));
+  font-size: max(0.84rem, calc(100cqi * 0.39));
   line-height: 1;
   letter-spacing: -0.02em;
   pointer-events: none;
