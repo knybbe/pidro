@@ -661,27 +661,14 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     (s) => trumpsInHand(hands[s], trump).length > 0,
   )
 
-  // If winner has no trumps left, lead passes to next active clockwise
+  // If winner has no trumps left, lead will pass to next active clockwise when continuing
   let nextLeader: Seat | null = winner
-  // Reveal cold hands along the path to the end of the trick / leader
-  let coldRevealed = revealColdAlongPath(
-    seat,
-    state.trickLeader ?? seat,
-    hands,
-    trump,
-    state.coldRevealed,
-    true,
-  )
   if (!activeSeats.includes(winner)) {
-    // Winner would have led next but is cold — reveal leftovers now
-    coldRevealed[winner] = true
     nextLeader = nextActiveFrom(winner, activeSeats)
   }
 
-  // Solo last player: still play out remaining trumps one trick at a time
-  // (do not auto-scoop remaining cards).
-
-  purchasedIds = prunePurchased(purchasedIds, hands, coldRevealed, trump)
+  // Do not reveal any cold hands during trick pause; keep current coldRevealed
+  purchasedIds = prunePurchased(purchasedIds, hands, state.coldRevealed, trump)
 
   // Pause so every completed trick (including the final trick) stays visible until Continue
   return {
@@ -691,7 +678,7 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     completedTricks,
     pointsTaken,
     activeSeats,
-    coldRevealed,
+    coldRevealed: state.coldRevealed,
     trickLeader: nextLeader,
     purchasedIds,
     currentSeat: null,
@@ -707,40 +694,12 @@ export function continueAfterTrick(state: GameState): GameState {
   }
   const trump = state.trump!
   const winner = trickWinner(state.currentTrick, trump)
-  let leader = state.trickLeader ?? winner
-
   const dumpPiles = state.dumpPiles
 
-  // Ensure leader still has trumps; otherwise pass lead clockwise among active
+  // Check if hand is finished after this trick:
   const active = state.activeSeats.filter(
     (s) => trumpsInHand(state.hands[s], trump).length > 0,
   )
-  if (leader !== null && !active.includes(leader)) {
-    leader = nextActiveFrom(leader, active) ?? winner
-  }
-
-  // Reveal cold seats that play order passes when going to the new leader
-  const lastPlayer =
-    state.currentTrick.length > 0
-      ? state.currentTrick[state.currentTrick.length - 1].seat
-      : state.trickLeader ?? (leader ?? winner)
-  let coldRevealed = revealColdAlongPath(
-    lastPlayer,
-    leader ?? winner,
-    state.hands,
-    trump,
-    state.coldRevealed,
-    false,
-  )
-
-  const purchasedIds = prunePurchased(
-    state.purchasedIds,
-    state.hands,
-    coldRevealed,
-    trump,
-  )
-
-  // Check if hand is finished after this trick:
   const handOver =
     active.length === 0 ||
     ([0, 1, 2, 3] as Seat[]).every(
@@ -750,7 +709,7 @@ export function continueAfterTrick(state: GameState): GameState {
   if (handOver) {
     const allCold = ([0, 1, 2, 3] as Seat[]).map(
       (s) =>
-        coldRevealed[s] || trumpsInHand(state.hands[s], trump).length === 0,
+        state.coldRevealed[s] || trumpsInHand(state.hands[s], trump).length === 0,
     ) as [boolean, boolean, boolean, boolean]
     return finishHand({
       ...state,
@@ -758,11 +717,34 @@ export function continueAfterTrick(state: GameState): GameState {
       currentTrick: [],
       activeSeats: [],
       coldRevealed: allCold,
-      purchasedIds,
+      purchasedIds: [],
       currentSeat: null,
       trickLeader: null,
     })
   }
+
+  // Next trick leader: winner leads if they still have trumps.
+  // Otherwise, turn passes clockwise; reveal cold players only as play order steps past them.
+  let leader: Seat = winner
+  let coldRevealed = [...state.coldRevealed] as [boolean, boolean, boolean, boolean]
+  if (trumpsInHand(state.hands[winner], trump).length === 0) {
+    // Winner was supposed to lead but has no trumps -> reveal winner face-up now
+    coldRevealed[winner] = true
+    let s = nextSeat(winner)
+    while (trumpsInHand(state.hands[s], trump).length === 0) {
+      // Each passed seat reveals as turn order steps past them
+      coldRevealed[s] = true
+      s = nextSeat(s)
+    }
+    leader = s
+  }
+
+  const purchasedIds = prunePurchased(
+    state.purchasedIds,
+    state.hands,
+    coldRevealed,
+    trump,
+  )
 
   return {
     ...state,

@@ -111,7 +111,7 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
         <button type="button" className="btn ghost" onClick={onShowRules}>
           How to play
         </button>
-        <div className="lobby-version">v0.8.41</div>
+        <div className="lobby-version">v0.8.42</div>
       </div>
     </div>
   )

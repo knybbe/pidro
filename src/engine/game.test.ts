@@ -25,7 +25,7 @@ import {
   trumpStrength,
 } from './rules'
 import { matchWinner, scoreHand } from './score'
-import type { Seat, Suit } from './types'
+import type { GameState, Seat, Suit } from './types'
 import { teamOf } from './types'
 
 describe('rules', () => {
@@ -302,6 +302,81 @@ describe('play', () => {
     s = continueAfterTrick(s)
     s = playCard(s, 0, s.hands[0][0].id)
     expect(['trick_pause', 'hand_result', 'game_over']).toContain(s.phase)
+  })
+
+  it('cold seats are only revealed when clockwise play or lead order reaches them', () => {
+    const trump: Suit = 'H'
+    // Seat 0 (South) has 2 trumps.
+    // Seat 1 (West) has 0 trumps (cold).
+    // Seat 2 (North) has 1 trump.
+    // Seat 3 (East) has 0 trumps (cold).
+    const s0Card1 = makeCard('H', 'A')
+    const s0Card2 = makeCard('H', 'K')
+    const s2Card1 = makeCard('H', 'Q')
+    const s1Card = makeCard('S', '9')
+    const s3Card = makeCard('D', '9')
+
+    let s: GameState = {
+      ...createLobbyState(1),
+      trump,
+      hands: [
+        [s0Card1, s0Card2],
+        [s1Card],
+        [s2Card1],
+        [s3Card],
+      ],
+      activeSeats: [0, 2],
+      coldRevealed: [false, false, false, false],
+      currentSeat: 0,
+      trickLeader: 0,
+      currentTrick: [],
+      completedTricks: [],
+      pointsTaken: [0, 0],
+      phase: 'playing',
+      seats: [
+        { name: 'You', kind: 'human', difficulty: 'medium' },
+        { name: 'West', kind: 'bot', difficulty: 'medium' },
+        { name: 'North', kind: 'bot', difficulty: 'medium' },
+        { name: 'East', kind: 'bot', difficulty: 'medium' },
+      ],
+      dumpPiles: [[], [], [], []],
+      purchasedIds: [],
+    }
+
+    // South leads card 1
+    s = playCard(s, 0, s0Card1.id)
+    // Between South (0) and North (2), West (1) has no trumps so West was reached and revealed
+    expect(s.coldRevealed[1]).toBe(true)
+    // North is next to play
+    expect(s.currentSeat).toBe(2)
+    // East (3) has NOT been reached yet, so East remains hidden
+    expect(s.coldRevealed[3]).toBe(false)
+
+    // North plays card
+    s = playCard(s, 2, s2Card1.id)
+    // Trick completes (pause)
+    expect(s.phase).toBe('trick_pause')
+    // East has not played or led yet, so East remains hidden (false)
+    expect(s.coldRevealed[3]).toBe(false)
+    // South won the trick with Ace (Team 0), North is now out of trumps
+    expect(trumpsInHand(s.hands[2], trump).length).toBe(0)
+    expect(s.coldRevealed[2]).toBe(false) // North hasn't revealed yet either
+
+    // Advance after trick (South leads next trick with K)
+    s = continueAfterTrick(s)
+    expect(s.phase).toBe('playing')
+    expect(s.currentSeat).toBe(0)
+    // East still hidden
+    expect(s.coldRevealed[3]).toBe(false)
+
+    // South leads second card (King)
+    s = playCard(s, 0, s0Card2.id)
+    expect(s.phase).toBe('trick_pause')
+    // Advance trick pause
+    s = continueAfterTrick(s)
+    // Hand is now over (all trumps played); all remaining non-trumps are revealed
+    expect(s.phase).toBe('hand_result')
+    expect(s.coldRevealed).toEqual([true, true, true, true])
   })
 
   it('trick winner is highest trump', () => {

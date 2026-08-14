@@ -171,13 +171,13 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
       const w = el.clientWidth
       const h = el.clientHeight
       const side = Math.max(0, Math.floor(Math.min(w, h)))
-      if (Math.abs(side - lastSideRef.current) >= 2 || lastSideRef.current === 0) {
+      if (Math.abs(side - lastSideRef.current) >= 3 || lastSideRef.current === 0) {
         lastSideRef.current = side
         setFeltSide(side)
       }
       const compact =
         window.innerWidth < 520 || window.innerHeight < 540
-      setCompactUi(compact)
+      setCompactUi((prev) => (prev === compact ? prev : compact))
     }
     measure()
     const ro = new ResizeObserver(() => {

@@ -51,25 +51,33 @@ export function CardView({
     </>
   )
 
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        className={className}
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          onClick()
-        }}
-        aria-label={`${card.rank} of ${card.suit}`}
-      >
-        {face}
-      </button>
-    )
-  }
-
   return (
-    <div className={className} aria-label={`${card.rank} of ${card.suit}`}>
+    <div
+      className={className}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={
+        onClick
+          ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onClick()
+            }
+          : undefined
+      }
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault()
+                e.stopPropagation()
+                onClick()
+              }
+            }
+          : undefined
+      }
+      aria-label={`${card.rank} of ${card.suit}`}
+    >
       {face}
     </div>
   )
