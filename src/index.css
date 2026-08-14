@@ -1174,16 +1174,16 @@ button {
 .seat-bid-callout {
   position: relative;
   z-index: 20;
-  min-width: calc(2.5rem * var(--ui-scale, 1));
+  min-width: calc(2.8rem * var(--ui-scale, 1));
   max-width: 100%;
-  min-height: calc(2.5rem * var(--ui-scale, 1));
+  min-height: calc(2.8rem * var(--ui-scale, 1));
   padding: calc(0.28rem * var(--ui-scale, 1)) calc(0.4rem * var(--ui-scale, 1));
   border-radius: calc(14px * var(--ui-scale, 1));
   background: #ffffff;
   color: #111111;
   border: 2px solid var(--accent);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-  font-size: calc(1.5rem * var(--ui-scale, 1));
+  font-size: calc(1.8rem * var(--ui-scale, 1));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   display: grid;
@@ -1194,7 +1194,7 @@ button {
 }
 
 .seat-bid-callout.pass {
-  font-size: calc(1.08rem * var(--ui-scale, 1));
+  font-size: calc(1.3rem * var(--ui-scale, 1));
   font-weight: 700;
   border-color: #6b7c70;
   color: #3a4a40;
@@ -1725,24 +1725,24 @@ button {
 
 .south-bid-chip {
   flex: 0 0 auto;
-  min-width: calc(2.6rem * var(--ui-scale, 1));
-  height: calc(2.4rem * var(--ui-scale, 1));
-  max-height: calc(2.4rem * var(--ui-scale, 1));
+  min-width: calc(2.8rem * var(--ui-scale, 1));
+  height: calc(2.7rem * var(--ui-scale, 1));
+  max-height: calc(2.7rem * var(--ui-scale, 1));
   padding: 0 calc(0.4rem * var(--ui-scale, 1));
   border-radius: calc(10px * var(--ui-scale, 1));
   background: #ffffff;
   color: #111;
   border: 1px solid #d0d4dc;
   font-weight: 700;
-  font-size: calc(1.26rem * var(--ui-scale, 1));
+  font-size: calc(1.51rem * var(--ui-scale, 1));
   line-height: 1;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
 }
 
 .south-bid-chip.pass {
-  min-width: calc(3.8rem * var(--ui-scale, 1));
-  font-size: calc(1.2rem * var(--ui-scale, 1));
+  min-width: calc(4.2rem * var(--ui-scale, 1));
+  font-size: calc(1.44rem * var(--ui-scale, 1));
   background: #1c2820;
   color: var(--ink);
   border-color: #3a4a40;
@@ -1766,9 +1766,9 @@ button {
 
 /* South callout (Pass / number after you bid) stays inside fixed strip */
 .south-bid-slot .seat-bid-callout.south {
-  min-height: calc(2.2rem * var(--ui-scale, 1));
-  max-height: calc(2.4rem * var(--ui-scale, 1));
-  font-size: calc(1.38rem * var(--ui-scale, 1));
+  min-height: calc(2.5rem * var(--ui-scale, 1));
+  max-height: calc(2.7rem * var(--ui-scale, 1));
+  font-size: calc(1.65rem * var(--ui-scale, 1));
   padding: 0.15rem 0.45rem;
   align-self: flex-end;
 }
