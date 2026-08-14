@@ -336,30 +336,40 @@ export function performDiscardAndRefill(state: GameState): GameState {
   let stock = [...state.stock]
   const dumpPiles = emptyDumps()
 
-  // 1. Each player keeps only trumps; non-trumps go to that player's dump pile
-  for (let s = 0; s < 4; s++) {
-    const nonTrumps = hands[s].filter((c) => !isTrump(c, trump))
-    dumpPiles[s].push(...nonTrumps)
-    let trumps = trumpsInHand(hands[s], trump)
-    if (trumps.length > HAND_SIZE_AFTER_DISCARD) {
-      const scoring = trumps.filter((c) => isScoringTrump(c, trump))
-      const nonScoring = trumps
-        .filter((c) => !isScoringTrump(c, trump))
-        .sort((a, b) => trumpStrength(a, trump) - trumpStrength(b, trump))
-      const dropCount = trumps.length - HAND_SIZE_AFTER_DISCARD
-      const dropped = nonScoring.slice(0, dropCount)
-      dumpPiles[s].push(...dropped)
-      const keepNon = nonScoring.slice(dropCount)
-      trumps = [...scoring, ...keepNon]
-    }
-    hands[s] = trumps
-  }
-
   // Track cards drawn from stock (purchase / refill) for UI markers
   const purchasedIds: string[] = []
 
-  // Classic only: refill from stock. Kokkola already dealt +4 after bidding.
-  if (state.gameMode !== 'kokkola') {
+  if (state.gameMode === 'kokkola') {
+    // Kokkola mode: each player has 9 cards after bidding (+4 cards dealt).
+    // All players discard down to 6 cards (keeping trumps, then non-trumps up to 6 total).
+    // All 4 players start the round with 6 cards in their hand!
+    for (let s = 0; s < 4; s++) {
+      const res = discardDownToSix(hands[s], trump)
+      hands[s] = res.keep
+      dumpPiles[s].push(...res.discarded)
+    }
+    stock = []
+  } else {
+    // Classic mode:
+    // 1. Each player keeps only trumps; non-trumps go to that player's dump pile
+    for (let s = 0; s < 4; s++) {
+      const nonTrumps = hands[s].filter((c) => !isTrump(c, trump))
+      dumpPiles[s].push(...nonTrumps)
+      let trumps = trumpsInHand(hands[s], trump)
+      if (trumps.length > HAND_SIZE_AFTER_DISCARD) {
+        const scoring = trumps.filter((c) => isScoringTrump(c, trump))
+        const nonScoring = trumps
+          .filter((c) => !isScoringTrump(c, trump))
+          .sort((a, b) => trumpStrength(a, trump) - trumpStrength(b, trump))
+        const dropCount = trumps.length - HAND_SIZE_AFTER_DISCARD
+        const dropped = nonScoring.slice(0, dropCount)
+        dumpPiles[s].push(...dropped)
+        const keepNon = nonScoring.slice(dropCount)
+        trumps = [...scoring, ...keepNon]
+      }
+      hands[s] = trumps
+    }
+
     // 2. Non-dealers refill from stock (order: left of dealer first)
     let s = nextSeat(state.dealer)
     for (let i = 0; i < 3; i++) {
@@ -383,8 +393,6 @@ export function performDiscardAndRefill(state: GameState): GameState {
     for (const c of dealerStock) {
       if (keptIds.has(c.id)) purchasedIds.push(c.id)
     }
-  } else {
-    stock = []
   }
 
   // Low holder: who holds trump 2 after discard

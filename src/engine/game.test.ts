@@ -135,6 +135,21 @@ describe('bidding', () => {
     expect(s.highBid).toBe(6)
   })
 
+  it('in Kokkola mode all players have 6 cards in hand when play starts', () => {
+    let s = startMatch(createLobbyState(undefined, undefined, 'kokkola'), { seed: 50 })
+    s = placeBid(s, 1, 6)
+    s = placeBid(s, 2, null)
+    s = placeBid(s, 3, null)
+    s = placeBid(s, 0, null)
+    expect(s.bidder).toBe(1)
+    s = chooseTrump(s, 1, 'H')
+    expect(s.phase).toBe('playing')
+    // In Kokkola mode, all 4 players discard down to exactly 6 cards total at start of play
+    for (let i = 0; i < 4; i++) {
+      expect(s.hands[i].length).toBe(6)
+    }
+  })
+
   it('must overcall previous bid', () => {
     let s = startMatch(createLobbyState(1), { seed: 1 })
     s = placeBid(s, 1, 7)
