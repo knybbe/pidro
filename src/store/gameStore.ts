@@ -337,6 +337,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     saveGameMode(effectiveMode)
 
+    // If there is an existing ongoing match in state or savedState, ensure it is saved in history first
+    const stateVal = get().state
+    const savedVal = get().savedState
+    const ongoingState =
+      stateVal && stateVal.phase !== 'lobby'
+        ? stateVal
+        : savedVal && savedVal.phase !== 'lobby'
+          ? savedVal
+          : null
+
+    if (ongoingState) {
+      let existingRecord = get().currentGameRecord
+      if (!existingRecord && get().currentGameId) {
+        existingRecord =
+          loadGameHistory().find((g) => g.id === get().currentGameId) ?? null
+      }
+      if (existingRecord) {
+        updateGameHistoryWithState(existingRecord, ongoingState)
+      } else {
+        const synRecord = createNewGameRecord(ongoingState)
+        updateGameHistoryWithState(synRecord, ongoingState)
+      }
+    }
+
     const state = startMatch(
       createLobbyState(undefined, undefined, effectiveMode),
       {
@@ -524,9 +548,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return
       }
       if (state.phase === 'game_over') {
+        if (get().currentGameRecord) {
+          updateGameHistoryWithState(get().currentGameRecord!, state)
+        }
         const next = rematch(state)
-        syncStateAndHistory(get, set, next)
+        const record = createNewGameRecord(next)
+        try {
+          localStorage.setItem(CURRENT_GAME_ID_KEY, record.id)
+        } catch {
+          /* ignore */
+        }
+        set({
+          state: next,
+          savedState: next,
+          currentGameId: record.id,
+          currentGameRecord: record,
+        })
+        saveSavedState(next)
         queueMicrotask(() => get().kickBots())
+        return
       }
     } catch (e) {
       console.error('continuePlay failed', e)
@@ -535,8 +575,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   doRematch: () => {
     clearBot(get, set)
+    if (get().currentGameRecord && get().state.phase === 'game_over') {
+      updateGameHistoryWithState(get().currentGameRecord!, get().state)
+    }
     const state = rematch(get().state)
-    syncStateAndHistory(get, set, state)
+    const record = createNewGameRecord(state)
+    try {
+      localStorage.setItem(CURRENT_GAME_ID_KEY, record.id)
+    } catch {
+      /* ignore */
+    }
+    set({
+      state,
+      savedState: state,
+      currentGameId: record.id,
+      currentGameRecord: record,
+    })
+    saveSavedState(state)
     queueMicrotask(() => get().kickBots())
   },
 

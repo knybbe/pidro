@@ -401,77 +401,67 @@ export function branchGameFromRound(
   return { newRecord, state: restoredState }
 }
 
+import { suitSymbol } from './rules'
+
 /**
  * Generate human-readable + structured export text for clipboard and debugging.
+ * Formatted compactly so full matches can be easily reviewed, shared, and replayed.
  */
 export function formatGameLogAsText(record: GameHistoryRecord): string {
-  const seatNames = record.seats.map((s) => s.name)
+  const seatAbbr = ['S', 'W', 'N', 'E'] as const
+  const cardStr = (c: Card) => `${c.rank}${suitSymbol(c.suit)}`
   const lines: string[] = []
 
-  lines.push(`=======================================================`)
-  lines.push(`PIDRO MATCH LOG - ${record.id}`)
-  lines.push(`Started: ${record.startedAt}`)
-  lines.push(`Updated: ${record.updatedAt}`)
-  lines.push(`Game Mode: ${record.gameMode.toUpperCase()}`)
-  lines.push(`Target Score: ${record.targetScore}`)
-  lines.push(`Status: ${record.status.toUpperCase()}${record.winnerTeam !== null ? ` (Winner: Team ${record.winnerTeam === 0 ? 'South & North' : 'West & East'})` : ''}`)
-  lines.push(`Final Scores: South & North [${record.finalScores[0]}] — West & East [${record.finalScores[1]}]`)
-  lines.push(`Seats:`)
-  record.seats.forEach((s, idx) => {
-    lines.push(`  Seat ${idx} (${['South', 'West', 'North', 'East'][idx]}): ${s.name} [${s.kind}${s.difficulty ? `, ${s.difficulty}` : ''}${s.biddingRisk ? `, risk:${s.biddingRisk}` : ''}]`)
-  })
-  lines.push(`=======================================================\n`)
+  lines.push(`=== PIDRO MATCH: ${record.id} ===`)
+  lines.push(`Mode: ${record.gameMode.toUpperCase()} | Target: ${record.targetScore} | Status: ${record.status.toUpperCase()}${record.winnerTeam !== null ? ` (Winner: Team ${record.winnerTeam === 0 ? 'South & North' : 'West & East'})` : ''}`)
+  lines.push(`Score: S-N [${record.finalScores[0]}] — W-E [${record.finalScores[1]}] | Started: ${record.startedAt}`)
+  const seatsStr = record.seats
+    .map((s, idx) => `${seatAbbr[idx]}:${s.name}(${s.kind === 'human' ? 'Human' : `${s.difficulty || 'bot'}`})`)
+    .join(' ')
+  lines.push(`Seats: ${seatsStr}`)
+  lines.push(``)
 
   record.rounds.forEach((round) => {
-    lines.push(`--- ROUND ${round.roundNumber} ---`)
-    lines.push(`Dealer: Seat ${round.dealer} (${seatNames[round.dealer]}) | Seed: ${round.seed}`)
+    lines.push(`--- Round ${round.roundNumber} (Dealer: ${seatAbbr[round.dealer]}, Seed: ${round.seed}) ---`)
     
-    // Initial hands dealt
-    lines.push(`Initial Deals:`)
+    // Initial deals
+    lines.push(`Deals:`)
     round.initialHands.forEach((hand, sIdx) => {
-      const cardsStr = hand.map((c) => `${c.rank}${c.suit}`).join(' ')
-      lines.push(`  ${seatNames[sIdx]} (${['South', 'West', 'North', 'East'][sIdx]}): ${cardsStr}`)
+      lines.push(`  ${seatAbbr[sIdx]}: ${hand.map(cardStr).join(' ')}`)
     })
 
-    // Bidding sequence
-    lines.push(`Bidding Sequence:`)
-    if (round.bids.length === 0) {
-      lines.push(`  (No bids logged)`)
-    } else {
-      round.bids.forEach((b) => {
-        lines.push(`  ${seatNames[b.seat]}: ${b.bid === null ? 'Pass' : b.bid}`)
-      })
-    }
-    if (round.bidWinner) {
-      lines.push(`Contract Winner: ${seatNames[round.bidWinner.seat]} with bid of ${round.bidWinner.bid}`)
-    }
-    if (round.trump) {
-      lines.push(`Trump Chosen: ${round.trump}`)
-    }
+    // Bidding
+    const bidsStr = round.bids.length > 0
+      ? round.bids.map((b) => `${seatAbbr[b.seat]}:${b.bid ?? 'Pass'}`).join(' -> ')
+      : '(None)'
+    const contractStr = round.bidWinner
+      ? `  [Contract: ${seatAbbr[round.bidWinner.seat]} @ ${round.bidWinner.bid}${round.trump ? `, Trump: ${suitSymbol(round.trump)}` : ''}]`
+      : ''
+    lines.push(`Bids: ${bidsStr}${contractStr}`)
 
     // Tricks
-    lines.push(`Tricks Played (${round.tricks.length}):`)
-    round.tricks.forEach((t) => {
-      const playsStr = t.plays.map((p) => `${seatNames[p.seat]}:${p.card.rank}${p.card.suit}`).join(' -> ')
-      lines.push(`  Trick ${t.trickNumber}: ${playsStr} | Won by ${seatNames[t.winner]} (Pts: S-N +${t.pointsScored.team0}, W-E +${t.pointsScored.team1})`)
-    })
+    if (round.tricks.length > 0) {
+      lines.push(`Tricks:`)
+      round.tricks.forEach((t) => {
+        const playsStr = t.plays.map((p) => `${seatAbbr[p.seat]}:${cardStr(p.card)}`).join(' ')
+        const ptsStr = t.pointsScored.team0 > 0 || t.pointsScored.team1 > 0
+          ? ` (Pts: ${t.pointsScored.team0 > 0 ? `+${t.pointsScored.team0} Us` : ''}${t.pointsScored.team1 > 0 ? ` +${t.pointsScored.team1} Them` : ''})`
+          : ''
+        lines.push(`  T${t.trickNumber}: ${playsStr} => ${seatAbbr[t.winner]}${ptsStr}`)
+      })
+    }
 
     // Result
     if (round.result) {
-      lines.push(`Round Result:`)
-      lines.push(`  Bidder Team: Team ${round.result.bidderTeam} | Contract: ${round.result.bid} points`)
-      lines.push(`  Points Taken: S-N: ${round.result.teamPointsTaken[0]} | W-E: ${round.result.teamPointsTaken[1]}`)
-      lines.push(`  Contract ${round.result.made ? 'MADE' : 'FAILED / SET'}`)
-      lines.push(`  Score Delta: S-N ${round.result.teamScoreDelta[0] >= 0 ? '+' : ''}${round.result.teamScoreDelta[0]}, W-E ${round.result.teamScoreDelta[1] >= 0 ? '+' : ''}${round.result.teamScoreDelta[1]}`)
-      lines.push(`  Cumulative Score After Round: S-N ${round.scoresAfter[0]} — W-E ${round.scoresAfter[1]}`)
+      const deltaUs = `${round.result.teamScoreDelta[0] >= 0 ? '+' : ''}${round.result.teamScoreDelta[0]}`
+      const deltaThem = `${round.result.teamScoreDelta[1] >= 0 ? '+' : ''}${round.result.teamScoreDelta[1]}`
+      lines.push(`Result: Team ${round.result.bidderTeam} ${round.result.made ? 'MADE' : 'FAILED'} ${round.result.bid} (Pts: ${round.result.teamPointsTaken[0]}-${round.result.teamPointsTaken[1]}) | Delta: ${deltaUs}/${deltaThem} => Score: ${round.scoresAfter[0]} - ${round.scoresAfter[1]}`)
     }
     lines.push(``)
   })
 
-  lines.push(`=======================================================`)
-  lines.push(`FULL JSON REPLAY PAYLOAD:`)
-  lines.push(JSON.stringify(record, null, 2))
-  lines.push(`=======================================================`)
+  lines.push(`=== REPLAY JSON ===`)
+  lines.push(JSON.stringify(record))
 
   return lines.join('\n')
 }

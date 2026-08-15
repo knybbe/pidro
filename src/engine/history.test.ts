@@ -131,15 +131,15 @@ describe('Game History & Logging Engine', () => {
     expect(history[0].id).toBe(newRecord.id)
   })
 
-  it('formats human readable text log with full JSON export', () => {
+  it('formats compact human readable text log with single-line JSON export', () => {
     const state = startMatch(createLobbyState(777), { seed: 777, gameMode: 'classic' })
     const record = createNewGameRecord(state)
     const text = formatGameLogAsText(record)
 
-    expect(text).toContain('PIDRO MATCH LOG')
+    expect(text).toContain('PIDRO MATCH')
     expect(text).toContain('CLASSIC')
-    expect(text).toContain('ROUND 1')
-    expect(text).toContain('FULL JSON REPLAY PAYLOAD')
+    expect(text).toContain('Round 1')
+    expect(text).toContain('REPLAY JSON')
   })
 
   it('deletes games from history', () => {
