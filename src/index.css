@@ -281,12 +281,25 @@ button {
   padding: clamp(0.35rem, 0.8vh, 0.75rem) 1.1rem;
 }
 
-.lobby-version {
+.lobby-version-btn {
   text-align: center;
-  font-size: 0.72rem;
+  font-size: clamp(0.76rem, 1.4vh, 0.88rem);
   color: var(--muted);
-  opacity: 0.6;
-  margin-top: 0.2rem;
+  opacity: 0.85;
+  margin-top: clamp(0.1rem, 0.3vh, 0.35rem);
+  padding: 0.2rem 0.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+  line-height: 1.3;
+  width: 100%;
+  text-decoration: none;
+}
+
+.lobby-version-btn:hover {
+  color: var(--accent);
+  opacity: 1;
+  background: rgba(240, 193, 75, 0.08);
 }
 
 .btn {
@@ -2187,6 +2200,173 @@ button.card.black {
 
 .modal-footer .btn {
   width: 100%;
+}
+
+/* —— Info Modal —— */
+.info-modal {
+  max-width: 480px;
+}
+
+.info-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.info-top {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.2rem 0.1rem;
+}
+
+.info-logo-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1.5px solid #36503c;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  flex-shrink: 0;
+}
+
+.info-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.info-app-title {
+  font-size: 1.25rem !important;
+  font-weight: 700;
+  margin: 0 !important;
+  color: var(--ink) !important;
+  line-height: 1.1;
+}
+
+.info-app-sub {
+  font-size: 0.78rem !important;
+  color: var(--muted) !important;
+  margin: 0 !important;
+}
+
+.info-version-pill {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(240, 193, 75, 0.12);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.info-card {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid #203225;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+}
+
+.info-card h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.info-card p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.38;
+}
+
+.info-card p + p {
+  margin-top: 0.3rem;
+}
+
+.info-copyright {
+  font-size: 0.82rem !important;
+  color: var(--ink) !important;
+  font-weight: 500;
+}
+
+.info-recipient {
+  margin-bottom: 0.4rem !important;
+  font-size: 0.8rem !important;
+}
+
+.info-recipient code {
+  color: var(--accent);
+  background: #111b14;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+
+.paypal-button-group {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.paypal-pill {
+  flex: 1 1 0%;
+  min-width: 60px;
+  text-align: center;
+  padding: 0.38rem 0.55rem;
+  background: #162b1e;
+  border: 1px solid #35583e;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.84rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+
+.paypal-pill:hover {
+  background: var(--accent);
+  color: #121008;
+  border-color: var(--accent);
+}
+
+.paypal-pill:active {
+  transform: scale(0.97);
+}
+
+.info-update-card .hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.force-update-btn {
+  width: 100%;
+  font-size: 0.84rem;
+  min-height: 38px;
+  padding: 0.4rem 0.8rem;
+}
+
+@media (max-width: 440px), (max-height: 520px) {
+  .info-modal {
+    max-height: 90dvh;
+  }
+  .info-logo-img {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+  }
+  .info-modal-body {
+    padding: 0.6rem 0.75rem 0.8rem;
+    gap: 0.5rem;
+  }
+  .info-card {
+    padding: 0.45rem 0.6rem;
+  }
 }
 
 @media (min-width: 700px) {

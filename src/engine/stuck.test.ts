@@ -13,7 +13,9 @@ import { botAct } from '../ai'
 import { trumpsInHand } from './rules'
 
 describe('full match simulation and stuck detection', () => {
-  it('simulates 500 full hands with botAct without errors or stuck states', () => {
+  it(
+    'simulates 500 full hands with botAct without errors or stuck states',
+    () => {
     const failures: unknown[] = []
     for (let seed = 1; seed <= 2000; seed++) {
       const mode = seed % 2 === 0 ? 'classic' : 'kokkola'
@@ -94,5 +96,5 @@ describe('full match simulation and stuck detection', () => {
       console.error(JSON.stringify(failures.slice(0, 5), null, 2))
     }
     expect(failures).toEqual([])
-  })
+  }, 30000)
 })

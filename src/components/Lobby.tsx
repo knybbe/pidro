@@ -1,5 +1,6 @@
 import type { BotConfig, Difficulty, RiskLevel } from '../engine'
 import { useGameStore } from '../store/gameStore'
+import { APP_COPYRIGHT } from '../version'
 
 const LEVELS: { key: Difficulty; label: string }[] = [
   { key: 'easy', label: 'Easy' },
@@ -12,7 +13,13 @@ const RISKS: { key: RiskLevel; label: string }[] = [
   { key: 'high', label: 'High' },
 ]
 
-export function Lobby({ onShowRules }: { onShowRules: () => void }) {
+export function Lobby({
+  onShowRules,
+  onShowInfo,
+}: {
+  onShowRules: () => void
+  onShowInfo: () => void
+}) {
   const start = useGameStore((s) => s.start)
   const resume = useGameStore((s) => s.resume)
   const hasSavedMatch = useGameStore(
@@ -105,7 +112,15 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
         <button type="button" className="btn ghost" onClick={onShowRules}>
           How to play
         </button>
-        <div className="lobby-version">v0.8.43</div>
+        <button
+          type="button"
+          className="lobby-version-btn"
+          onClick={onShowInfo}
+          title="About Pidro & App Updates"
+          aria-label="About Pidro and App Updates"
+        >
+          {APP_COPYRIGHT}
+        </button>
       </div>
     </div>
   )
