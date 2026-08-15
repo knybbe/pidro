@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import type { BotConfig, Difficulty, GameMode, RiskLevel } from '../engine'
+import type { BotConfig, Difficulty, RiskLevel } from '../engine'
 import { useGameStore } from '../store/gameStore'
 
 const LEVELS: { key: Difficulty; label: string }[] = [
@@ -19,19 +18,14 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
   const hasSavedMatch = useGameStore(
     (s) => Boolean(s.savedState && s.savedState.phase !== 'lobby'),
   )
-  const [west, setWest] = useState<BotConfig>({
-    difficulty: 'medium',
-    biddingRisk: 'medium',
-  })
-  const [north, setNorth] = useState<BotConfig>({
-    difficulty: 'medium',
-    biddingRisk: 'medium',
-  })
-  const [east, setEast] = useState<BotConfig>({
-    difficulty: 'medium',
-    biddingRisk: 'medium',
-  })
-  const [mode, setMode] = useState<GameMode>('classic')
+  const mode = useGameStore((s) => s.gameMode)
+  const setMode = useGameStore((s) => s.setGameMode)
+  const botConfigs = useGameStore((s) => s.botConfigs)
+  const setBotConfig = useGameStore((s) => s.setBotConfig)
+
+  const west = botConfigs[0]
+  const north = botConfigs[1]
+  const east = botConfigs[2]
 
   return (
     <div className="lobby">
@@ -74,19 +68,19 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
             name="West"
             role="Opponent"
             config={west}
-            onChange={setWest}
+            onChange={(cfg) => setBotConfig(0, cfg)}
           />
           <BotConfigRow
             name="North"
             role="Partner"
             config={north}
-            onChange={setNorth}
+            onChange={(cfg) => setBotConfig(1, cfg)}
           />
           <BotConfigRow
             name="East"
             role="Opponent"
             config={east}
-            onChange={setEast}
+            onChange={(cfg) => setBotConfig(2, cfg)}
           />
         </div>
       </section>
@@ -111,7 +105,7 @@ export function Lobby({ onShowRules }: { onShowRules: () => void }) {
         <button type="button" className="btn ghost" onClick={onShowRules}>
           How to play
         </button>
-        <div className="lobby-version">v0.8.42</div>
+        <div className="lobby-version">v0.8.43</div>
       </div>
     </div>
   )

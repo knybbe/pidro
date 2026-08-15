@@ -22,8 +22,80 @@ import {
 const PLAY_BOT_DELAY_MS = 450
 const BID_DELAY_KEY = 'pidro-bid-delay-sec'
 const GAME_STATE_KEY = 'pidro-saved-game-state'
+const GAME_MODE_KEY = 'pidro-game-mode'
+const BOT_CONFIGS_KEY = 'pidro-bot-configs'
 
 export type BidDelaySec = 0 | 1 | 2 | 3
+export type BotConfigs = [BotConfig, BotConfig, BotConfig]
+
+const DEFAULT_BOT_CONFIGS: BotConfigs = [
+  { difficulty: 'medium', biddingRisk: 'medium' },
+  { difficulty: 'medium', biddingRisk: 'medium' },
+  { difficulty: 'medium', biddingRisk: 'medium' },
+]
+
+function sanitizeDifficulty(d: unknown): Difficulty {
+  if (d === 'easy' || d === 'medium' || d === 'hard') return d
+  return 'medium'
+}
+
+function sanitizeRisk(r: unknown): RiskLevel {
+  if (r === 'low' || r === 'medium' || r === 'high') return r
+  return 'medium'
+}
+
+function loadBotConfigs(): BotConfigs {
+  try {
+    const raw = localStorage.getItem(BOT_CONFIGS_KEY)
+    if (!raw) return DEFAULT_BOT_CONFIGS
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed) && parsed.length === 3) {
+      return [
+        {
+          difficulty: sanitizeDifficulty(parsed[0]?.difficulty),
+          biddingRisk: sanitizeRisk(parsed[0]?.biddingRisk),
+        },
+        {
+          difficulty: sanitizeDifficulty(parsed[1]?.difficulty),
+          biddingRisk: sanitizeRisk(parsed[1]?.biddingRisk),
+        },
+        {
+          difficulty: sanitizeDifficulty(parsed[2]?.difficulty),
+          biddingRisk: sanitizeRisk(parsed[2]?.biddingRisk),
+        },
+      ]
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_BOT_CONFIGS
+}
+
+function saveBotConfigs(bots: BotConfigs): void {
+  try {
+    localStorage.setItem(BOT_CONFIGS_KEY, JSON.stringify(bots))
+  } catch {
+    /* ignore storage quota/incognito errors */
+  }
+}
+
+function loadGameMode(): GameMode {
+  try {
+    const m = localStorage.getItem(GAME_MODE_KEY)
+    if (m === 'classic' || m === 'kokkola') return m
+  } catch {
+    /* ignore */
+  }
+  return 'classic'
+}
+
+function saveGameMode(mode: GameMode): void {
+  try {
+    localStorage.setItem(GAME_MODE_KEY, mode)
+  } catch {
+    /* ignore storage quota/incognito errors */
+  }
+}
 
 function loadBidDelay(): BidDelaySec {
   try {
@@ -76,8 +148,13 @@ interface GameStore {
   /** Seconds to wait before each robot bid (0–3). Default 1. */
   bidDelaySec: BidDelaySec
   setBidDelaySec: (sec: BidDelaySec) => void
+  gameMode: GameMode
+  setGameMode: (mode: GameMode) => void
+  botConfigs: BotConfigs
+  setBotConfig: (index: 0 | 1 | 2, config: BotConfig) => void
+  setBotConfigs: (bots: BotConfigs) => void
   start: (
-    bots:
+    bots?:
       | [BotConfig, BotConfig, BotConfig]
       | [Difficulty, Difficulty, Difficulty],
     gameMode?: GameMode,
@@ -109,13 +186,17 @@ function applyHuman(
 }
 
 const initialSaved = loadSavedState()
+const initialGameMode = loadGameMode()
+const initialBotConfigs = loadBotConfigs()
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  state: initialSaved || createLobbyState(),
+  state: initialSaved || createLobbyState(undefined, undefined, initialGameMode),
   savedState: initialSaved,
   botTimer: null,
   botEpoch: 0,
   bidDelaySec: loadBidDelay(),
+  gameMode: initialGameMode,
+  botConfigs: initialBotConfigs,
 
   setBidDelaySec: (sec) => {
     set({ bidDelaySec: sec })
@@ -126,14 +207,79 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  start: (bots, gameMode = 'classic', biddingRisk = 'medium') => {
-    clearBot(get, set)
-    const state = startMatch(
-      createLobbyState(undefined, undefined, gameMode),
+  setGameMode: (mode) => {
+    set({ gameMode: mode })
+    saveGameMode(mode)
+  },
+
+  setBotConfig: (index, config) => {
+    const current = [...get().botConfigs] as BotConfigs
+    current[index] = {
+      difficulty: sanitizeDifficulty(config.difficulty),
+      biddingRisk: sanitizeRisk(config.biddingRisk),
+    }
+    set({ botConfigs: current })
+    saveBotConfigs(current)
+  },
+
+  setBotConfigs: (bots) => {
+    const sanitized: BotConfigs = [
       {
-        bots,
-        biddingRisk,
-        gameMode,
+        difficulty: sanitizeDifficulty(bots[0]?.difficulty),
+        biddingRisk: sanitizeRisk(bots[0]?.biddingRisk),
+      },
+      {
+        difficulty: sanitizeDifficulty(bots[1]?.difficulty),
+        biddingRisk: sanitizeRisk(bots[1]?.biddingRisk),
+      },
+      {
+        difficulty: sanitizeDifficulty(bots[2]?.difficulty),
+        biddingRisk: sanitizeRisk(bots[2]?.biddingRisk),
+      },
+    ]
+    set({ botConfigs: sanitized })
+    saveBotConfigs(sanitized)
+  },
+
+  start: (bots, gameMode, biddingRisk) => {
+    clearBot(get, set)
+    const effectiveBots = bots ?? get().botConfigs
+    const effectiveMode = gameMode ?? get().gameMode
+
+    if (Array.isArray(effectiveBots) && typeof effectiveBots[0] === 'object') {
+      const normalizedBots: BotConfigs = [
+        {
+          difficulty: sanitizeDifficulty(effectiveBots[0]?.difficulty),
+          biddingRisk: sanitizeRisk(
+            effectiveBots[0]?.biddingRisk ?? biddingRisk,
+          ),
+        },
+        {
+          difficulty: sanitizeDifficulty(effectiveBots[1]?.difficulty),
+          biddingRisk: sanitizeRisk(
+            effectiveBots[1]?.biddingRisk ?? biddingRisk,
+          ),
+        },
+        {
+          difficulty: sanitizeDifficulty(effectiveBots[2]?.difficulty),
+          biddingRisk: sanitizeRisk(
+            effectiveBots[2]?.biddingRisk ?? biddingRisk,
+          ),
+        },
+      ]
+      set({ botConfigs: normalizedBots, gameMode: effectiveMode })
+      saveBotConfigs(normalizedBots)
+    } else {
+      set({ gameMode: effectiveMode })
+    }
+    saveGameMode(effectiveMode)
+
+    const state = startMatch(
+      createLobbyState(undefined, undefined, effectiveMode),
+      {
+        bots: effectiveBots,
+        biddingRisk: biddingRisk ?? 'medium',
+        gameMode: effectiveMode,
       },
     )
     set({ state, savedState: state })
@@ -250,7 +396,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   backToLobby: () => {
     clearBot(get, set)
-    set({ state: createLobbyState() })
+    set({ state: createLobbyState(undefined, undefined, get().gameMode) })
   },
 
   kickBots: () => {
