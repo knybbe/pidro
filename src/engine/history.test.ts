@@ -82,7 +82,18 @@ describe('Game History & Logging Engine', () => {
     expect(record.rounds[0].trump).toBe('H')
     expect(state.phase).toBe('playing')
 
-    // Play trick
+    // Play 1st card of trick
+    const actor1 = state.currentSeat!
+    const hand1 = state.hands[actor1]
+    const card1 = hand1.filter((c) => c.suit === 'H' || (c.suit === 'D' && c.rank === '5'))[0] ?? hand1[0]
+    state = playCard(state, actor1, card1.id)
+    record = updateGameHistoryWithState(record, state)
+    // Verify mid-trick card play was recorded immediately
+    expect(record.rounds[0].tricks.length).toBe(1)
+    expect(record.rounds[0].tricks[0].plays.length).toBe(1)
+    expect(record.rounds[0].tricks[0].plays[0].seat).toBe(actor1)
+
+    // Play remaining cards in trick
     while (state.phase === 'playing') {
       const actor = state.currentSeat!
       const hand = state.hands[actor]
@@ -94,7 +105,7 @@ describe('Game History & Logging Engine', () => {
 
     expect(state.phase).toBe('trick_pause')
     expect(record.rounds[0].tricks.length).toBe(1)
-    expect(record.rounds[0].tricks[0].plays.length).toBeGreaterThan(0)
+    expect(record.rounds[0].tricks[0].plays.length).toBe(4)
   })
 
   it('branches from an existing round as a new game with current timestamp', () => {

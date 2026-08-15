@@ -236,20 +236,33 @@ export function updateGameHistoryWithState(
     ]
   }
 
-  // Update completed tricks
+  // Update all tricks (completed tricks + in-progress trick during 'playing')
+  const allTricks: TrickHistoryLog[] = []
   if (state.completedTricks && state.completedTricks.length > 0) {
-    currentRound.tricks = state.completedTricks.map((trick, tIdx) => {
+    state.completedTricks.forEach((trick, tIdx) => {
       const leader = trick[0]?.seat ?? 0
       const winner = state.trump ? findTrickWinner(trick, state.trump) : leader
-      return {
+      allTricks.push({
         trickNumber: tIdx + 1,
         leader,
         plays: [...trick],
         winner,
         pointsScored: calculateTrickPoints(trick, state.trump, winner),
-      }
+      })
     })
   }
+  if (state.phase === 'playing' && state.currentTrick && state.currentTrick.length > 0) {
+    const leader = state.trickLeader ?? state.currentTrick[0]?.seat ?? 0
+    const winner = state.trump ? findTrickWinner(state.currentTrick, state.trump) : leader
+    allTricks.push({
+      trickNumber: allTricks.length + 1,
+      leader,
+      plays: [...state.currentTrick],
+      winner,
+      pointsScored: calculateTrickPoints(state.currentTrick, state.trump, winner),
+    })
+  }
+  currentRound.tricks = allTricks
 
   // Update hand result if completed
   if (state.handResult) {
