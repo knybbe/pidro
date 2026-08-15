@@ -1,6 +1,6 @@
 import type { BotConfig, Difficulty, RiskLevel } from '../engine'
 import { useGameStore } from '../store/gameStore'
-import { APP_COPYRIGHT } from '../version'
+import { APP_VERSION } from '../version'
 
 const LEVELS: { key: Difficulty; label: string }[] = [
   { key: 'easy', label: 'Easy' },
@@ -13,14 +13,18 @@ const RISKS: { key: RiskLevel; label: string }[] = [
   { key: 'high', label: 'High' },
 ]
 
+import type { VersionStatus } from '../hooks/useVersionCheck'
+
 export function Lobby({
   onShowRules,
   onShowInfo,
   onShowHistory,
+  versionStatus = 'idle',
 }: {
   onShowRules: () => void
   onShowInfo: () => void
   onShowHistory: () => void
+  versionStatus?: VersionStatus
 }) {
   const start = useGameStore((s) => s.start)
   const resume = useGameStore((s) => s.resume)
@@ -131,12 +135,16 @@ export function Lobby({
         </div>
         <button
           type="button"
-          className="lobby-version-btn"
+          className={`lobby-version-btn version-status-${versionStatus}`}
           onClick={onShowInfo}
           title="About Pidro & App Updates"
           aria-label="About Pidro and App Updates"
         >
-          {APP_COPYRIGHT}
+          Pidro{' '}
+          <span className={`version-num-tag version-${versionStatus}`}>
+            {APP_VERSION}
+          </span>{' '}
+          (C) 2026- Kim Nyberg
         </button>
       </div>
     </div>

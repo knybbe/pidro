@@ -22,7 +22,9 @@ import {
   type Seat,
   type Suit,
 } from '../engine'
+import type { VersionStatus } from '../hooks/useVersionCheck'
 import { useGameStore, type BidDelaySec } from '../store/gameStore'
+import { APP_VERSION } from '../version'
 import { CardView } from './CardView'
 
 const BID_DELAYS: BidDelaySec[] = [0, 1, 2, 3]
@@ -42,7 +44,13 @@ function formatRoundCols(h: HandHistoryEntry): {
   }
 }
 
-export function Table({ onShowRules }: { onShowRules: () => void }) {
+export function Table({
+  onShowRules,
+  versionStatus = 'idle',
+}: {
+  onShowRules: () => void
+  versionStatus?: VersionStatus
+}) {
   const state = useGameStore((s) => s.state)
   const bid = useGameStore((s) => s.bid)
   const play = useGameStore((s) => s.play)
@@ -747,6 +755,15 @@ export function Table({ onShowRules }: { onShowRules: () => void }) {
               ? 'Click anywhere or press Space / Enter to continue'
               : '\u00a0')}
         </p>
+        <button
+          type="button"
+          className={`table-version-tag version-${versionStatus}`}
+          onClick={onShowRules}
+          title={`Pidro ${APP_VERSION} · Click for rules`}
+          aria-label={`Pidro version ${APP_VERSION}`}
+        >
+          {APP_VERSION}
+        </button>
       </div>
     </div>
   )

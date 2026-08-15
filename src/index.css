@@ -338,6 +338,76 @@ button {
   background: rgba(240, 193, 75, 0.08);
 }
 
+/* —— Discrete Version Status Indicators —— */
+.version-num-tag {
+  display: inline-block;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.version-num-tag.version-checking {
+  color: #f0c14b !important;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(240, 193, 75, 0.4);
+}
+
+.version-num-tag.version-up_to_date {
+  color: #4cd964 !important;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(76, 217, 100, 0.4);
+}
+
+.version-num-tag.version-out_of_date {
+  color: #ff6b6b !important;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(255, 107, 107, 0.6);
+  animation: pulse-red 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-red {
+  from { opacity: 0.8; }
+  to { opacity: 1; transform: scale(1.04); }
+}
+
+.table-version-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  opacity: 0.75;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: color 0.25s ease, opacity 0.25s ease, text-shadow 0.25s ease;
+}
+
+.table-version-tag:hover {
+  opacity: 1;
+  color: var(--ink);
+}
+
+.table-version-tag.version-checking {
+  color: #f0c14b !important;
+  opacity: 1;
+  text-shadow: 0 0 6px rgba(240, 193, 75, 0.4);
+}
+
+.table-version-tag.version-up_to_date {
+  color: #4cd964 !important;
+  opacity: 1;
+  text-shadow: 0 0 6px rgba(76, 217, 100, 0.4);
+}
+
+.table-version-tag.version-out_of_date {
+  color: #ff6b6b !important;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(255, 107, 107, 0.6);
+  animation: pulse-red 0.8s ease-in-out infinite alternate;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
