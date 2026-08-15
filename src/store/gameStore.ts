@@ -139,9 +139,23 @@ function saveSavedState(state: GameState | null): void {
   }
 }
 
+import {
+  branchGameFromRound as engineBranchGame,
+  createNewGameRecord,
+  deleteGameRecord,
+  formatGameLogAsText,
+  loadGameHistory,
+  updateGameHistoryWithState,
+  type GameHistoryRecord,
+} from '../engine/history'
+
+const CURRENT_GAME_ID_KEY = 'pidro-current-game-id'
+
 interface GameStore {
   state: GameState
   savedState: GameState | null
+  currentGameId: string | null
+  currentGameRecord: GameHistoryRecord | null
   botTimer: ReturnType<typeof setTimeout> | null
   /** Monotonic id so stale timeouts never apply */
   botEpoch: number
@@ -161,6 +175,10 @@ interface GameStore {
     biddingRisk?: RiskLevel,
   ) => void
   resume: () => void
+  loadGameFromHistory: (recordId: string) => void
+  branchGameFromRound: (recordId: string, roundIndex: number) => void
+  deleteGameFromHistory: (recordId: string) => void
+  getCurrentGameLogText: () => string
   bid: (bid: number | null) => void
   pickTrump: (suit: Suit) => void
   play: (cardId: string) => void
@@ -172,6 +190,40 @@ interface GameStore {
   kickBots: () => void
 }
 
+function syncStateAndHistory(
+  get: () => GameStore,
+  set: (
+    partial: Partial<GameStore> | ((s: GameStore) => Partial<GameStore>),
+  ) => void,
+  next: GameState,
+) {
+  let record = get().currentGameRecord
+  const gameId = get().currentGameId
+
+  if (!record && gameId) {
+    record = loadGameHistory().find((g) => g.id === gameId) ?? null
+  }
+
+  if (!record && next.phase !== 'lobby') {
+    record = createNewGameRecord(next)
+    try {
+      localStorage.setItem(CURRENT_GAME_ID_KEY, record.id)
+    } catch {
+      /* ignore */
+    }
+  } else if (record && next.phase !== 'lobby') {
+    record = updateGameHistoryWithState(record, next)
+  }
+
+  set({
+    state: next,
+    savedState: next,
+    currentGameId: record?.id ?? gameId ?? null,
+    currentGameRecord: record,
+  })
+  saveSavedState(next)
+}
+
 function applyHuman(
   get: () => GameStore,
   set: (
@@ -180,18 +232,29 @@ function applyHuman(
   updater: (state: GameState) => GameState,
 ) {
   const next = updater(get().state)
-  set({ state: next, savedState: next })
-  saveSavedState(next)
+  syncStateAndHistory(get, set, next)
   queueMicrotask(() => get().kickBots())
 }
 
 const initialSaved = loadSavedState()
 const initialGameMode = loadGameMode()
 const initialBotConfigs = loadBotConfigs()
+const initialGameId = (() => {
+  try {
+    return localStorage.getItem(CURRENT_GAME_ID_KEY)
+  } catch {
+    return null
+  }
+})()
+const initialRecord = initialGameId
+  ? loadGameHistory().find((g) => g.id === initialGameId) ?? null
+  : null
 
 export const useGameStore = create<GameStore>((set, get) => ({
   state: initialSaved || createLobbyState(undefined, undefined, initialGameMode),
   savedState: initialSaved,
+  currentGameId: initialGameId,
+  currentGameRecord: initialRecord,
   botTimer: null,
   botEpoch: 0,
   bidDelaySec: loadBidDelay(),
@@ -282,7 +345,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
         gameMode: effectiveMode,
       },
     )
-    set({ state, savedState: state })
+    const record = createNewGameRecord(state)
+    try {
+      localStorage.setItem(CURRENT_GAME_ID_KEY, record.id)
+    } catch {
+      /* ignore */
+    }
+    set({
+      state,
+      savedState: state,
+      currentGameId: record.id,
+      currentGameRecord: record,
+    })
     saveSavedState(state)
     queueMicrotask(() => get().kickBots())
   },
@@ -291,10 +365,89 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const saved = loadSavedState() || get().savedState
     if (saved && saved.phase !== 'lobby') {
       clearBot(get, set)
-      set({ state: saved, savedState: saved })
+      let record = get().currentGameRecord
+      if (!record && get().currentGameId) {
+        record = loadGameHistory().find((g) => g.id === get().currentGameId) ?? null
+      }
+      set({ state: saved, savedState: saved, currentGameRecord: record })
       saveSavedState(saved)
       queueMicrotask(() => get().kickBots())
     }
+  },
+
+  loadGameFromHistory: (recordId: string) => {
+    clearBot(get, set)
+    const history = loadGameHistory()
+    const record = history.find((g) => g.id === recordId)
+    if (!record) return
+
+    const restoredState = record.latestStateSnapshot
+    try {
+      localStorage.setItem(CURRENT_GAME_ID_KEY, record.id)
+    } catch {
+      /* ignore */
+    }
+    set({
+      state: restoredState,
+      savedState: restoredState,
+      currentGameId: record.id,
+      currentGameRecord: record,
+      gameMode: record.gameMode,
+    })
+    saveSavedState(restoredState)
+    saveGameMode(record.gameMode)
+    queueMicrotask(() => get().kickBots())
+  },
+
+  branchGameFromRound: (recordId: string, roundIndex: number) => {
+    clearBot(get, set)
+    const history = loadGameHistory()
+    const record = history.find((g) => g.id === recordId)
+    if (!record) return
+
+    const { newRecord, state } = engineBranchGame(record, roundIndex)
+    try {
+      localStorage.setItem(CURRENT_GAME_ID_KEY, newRecord.id)
+    } catch {
+      /* ignore */
+    }
+    set({
+      state,
+      savedState: state,
+      currentGameId: newRecord.id,
+      currentGameRecord: newRecord,
+      gameMode: newRecord.gameMode,
+    })
+    saveSavedState(state)
+    saveGameMode(newRecord.gameMode)
+    queueMicrotask(() => get().kickBots())
+  },
+
+  deleteGameFromHistory: (recordId: string) => {
+    deleteGameRecord(recordId)
+    if (get().currentGameId === recordId) {
+      try {
+        localStorage.removeItem(CURRENT_GAME_ID_KEY)
+      } catch {
+        /* ignore */
+      }
+      set({ currentGameId: null, currentGameRecord: null })
+    }
+  },
+
+  getCurrentGameLogText: () => {
+    const record =
+      get().currentGameRecord ||
+      (get().currentGameId
+        ? loadGameHistory().find((g) => g.id === get().currentGameId)
+        : null)
+
+    if (record) {
+      return formatGameLogAsText(record)
+    }
+    // Synthesize on the fly from current state if none recorded
+    const synth = createNewGameRecord(get().state)
+    return formatGameLogAsText(synth)
   },
 
   bid: (bid) => {
@@ -313,8 +466,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.seats[seat].kind !== 'human') return
     try {
       const next = chooseTrump(state, seat, suit)
-      set({ state: next, savedState: next })
-      saveSavedState(next)
+      syncStateAndHistory(get, set, next)
       queueMicrotask(() => get().kickBots())
     } catch (e) {
       console.error('pickTrump failed', e, { suit, phase: state.phase, seat })
@@ -329,8 +481,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.phase === 'trick_pause') {
       try {
         state = continueAfterTrick(state)
-        set({ state, savedState: state })
-        saveSavedState(state)
+        syncStateAndHistory(get, set, state)
       } catch (e) {
         console.error('continue before play failed', e)
         return
@@ -347,8 +498,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     try {
       const next = playCard(state, state.currentSeat as Seat, cardId)
-      set({ state: next, savedState: next })
-      saveSavedState(next)
+      syncStateAndHistory(get, set, next)
       queueMicrotask(() => get().kickBots())
     } catch (e) {
       // Card not legal after continue (e.g. not our lead) — leave advanced state
@@ -363,22 +513,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       if (state.phase === 'trick_pause') {
         const next = continueAfterTrick(state)
-        set({ state: next, savedState: next })
-        saveSavedState(next)
+        syncStateAndHistory(get, set, next)
         queueMicrotask(() => get().kickBots())
         return
       }
       if (state.phase === 'hand_result') {
         const next = nextHand(state)
-        set({ state: next, savedState: next })
-        saveSavedState(next)
+        syncStateAndHistory(get, set, next)
         queueMicrotask(() => get().kickBots())
         return
       }
       if (state.phase === 'game_over') {
         const next = rematch(state)
-        set({ state: next, savedState: next })
-        saveSavedState(next)
+        syncStateAndHistory(get, set, next)
         queueMicrotask(() => get().kickBots())
       }
     } catch (e) {
@@ -389,8 +536,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   doRematch: () => {
     clearBot(get, set)
     const state = rematch(get().state)
-    set({ state, savedState: state })
-    saveSavedState(state)
+    syncStateAndHistory(get, set, state)
     queueMicrotask(() => get().kickBots())
   },
 
@@ -483,8 +629,7 @@ function runBotOnce(
     }
   }
 
-  set({ state: next, savedState: next })
-  saveSavedState(next)
+  syncStateAndHistory(get, set, next)
 
   // Chain: if still a bot's turn, queue the next step
   const again = actingSeat(get().state)

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useGameStore } from '../store/gameStore'
 import { APP_COPYRIGHT, APP_VERSION } from '../version'
 
 interface Props {
@@ -8,8 +9,22 @@ interface Props {
 
 export function InfoModal({ open, onClose }: Props) {
   const [updating, setUpdating] = useState(false)
+  const [copiedLog, setCopiedLog] = useState(false)
+
+  const getCurrentLog = useGameStore((s) => s.getCurrentGameLogText)
 
   if (!open) return null
+
+  const handleCopyCurrentLog = async () => {
+    try {
+      const log = getCurrentLog()
+      await navigator.clipboard.writeText(log)
+      setCopiedLog(true)
+      setTimeout(() => setCopiedLog(false), 2500)
+    } catch (e) {
+      console.error('Failed to copy game log:', e)
+    }
+  }
 
   const handleForceUpdate = async () => {
     setUpdating(true)
@@ -97,6 +112,20 @@ export function InfoModal({ open, onClose }: Props) {
               Released under the <strong>MIT License</strong>.
             </p>
             <p className="info-copyright">{APP_COPYRIGHT}</p>
+          </div>
+
+          <div className="info-card info-debug-card">
+            <h4>📋 Game Replay & Debug Log</h4>
+            <p className="hint">
+              Copy complete bids, plays, card deals, and round history for debugging logic or replays:
+            </p>
+            <button
+              type="button"
+              className="btn secondary force-update-btn"
+              onClick={handleCopyCurrentLog}
+            >
+              {copiedLog ? '✓ Full Game Log Copied!' : '📋 Copy Full Current Game Log'}
+            </button>
           </div>
 
           <div className="info-card info-update-card">

@@ -16,9 +16,11 @@ const RISKS: { key: RiskLevel; label: string }[] = [
 export function Lobby({
   onShowRules,
   onShowInfo,
+  onShowHistory,
 }: {
   onShowRules: () => void
   onShowInfo: () => void
+  onShowHistory: () => void
 }) {
   const start = useGameStore((s) => s.start)
   const resume = useGameStore((s) => s.resume)
@@ -119,9 +121,14 @@ export function Lobby({
         >
           {hasSavedMatch ? 'New match' : 'Deal'}
         </button>
-        <button type="button" className="btn ghost" onClick={onShowRules}>
-          How to play
-        </button>
+        <div className="lobby-sub-actions">
+          <button type="button" className="btn ghost" onClick={onShowRules}>
+            How to play
+          </button>
+          <button type="button" className="btn ghost" onClick={onShowHistory}>
+            📜 Match History
+          </button>
+        </div>
         <button
           type="button"
           className="lobby-version-btn"
