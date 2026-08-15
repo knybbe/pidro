@@ -37,6 +37,16 @@ export function Lobby({
   return (
     <div className="lobby">
       <header className="lobby-hero">
+        <img
+          src={`${import.meta.env.BASE_URL}logo.jpg`}
+          alt="Pidro 5 of Hearts"
+          className="lobby-corner-logo"
+          onClick={onShowInfo}
+          title="About Pidro"
+          onError={(e) => {
+            ;(e.target as HTMLElement).style.display = 'none'
+          }}
+        />
         <div className="lobby-badge">Finnish Pidro</div>
         <h1>Pidro</h1>
         <p className="lobby-sub">

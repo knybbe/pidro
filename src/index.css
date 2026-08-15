@@ -98,9 +98,38 @@ button {
 }
 
 .lobby-hero {
+  position: relative;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: clamp(0.08rem, 0.5vh, 0.45rem) 0 clamp(0.06rem, 0.25vh, 0.25rem);
   flex-shrink: 0;
+  min-height: clamp(62px, 11vh, 88px);
+}
+
+.lobby-corner-logo {
+  position: absolute;
+  left: 0;
+  top: 5%;
+  height: 90%;
+  aspect-ratio: 1 / 1;
+  border-radius: clamp(8px, 1.4vh, 12px);
+  object-fit: cover;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+
+.lobby-corner-logo:hover {
+  transform: scale(1.05);
+  opacity: 0.95;
+}
+
+.lobby-corner-logo:active {
+  transform: scale(0.96);
 }
 
 .lobby-badge {
