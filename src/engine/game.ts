@@ -451,6 +451,14 @@ export function performDiscardAndRefill(state: GameState): GameState {
     boolean,
     boolean,
   ]
+  if (leader !== bidder && !activeSeats.includes(bidder)) {
+    coldRevealed[bidder] = true
+    let s = nextSeat(bidder)
+    while (s !== leader) {
+      if (!activeSeats.includes(s)) coldRevealed[s] = true
+      s = nextSeat(s)
+    }
+  }
 
   return {
     ...state,
@@ -667,8 +675,17 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     nextLeader = nextActiveFrom(winner, activeSeats)
   }
 
-  // Do not reveal any cold hands during trick pause; keep current coldRevealed
-  purchasedIds = prunePurchased(purchasedIds, hands, state.coldRevealed, trump)
+  // Reveal cold hands for any remaining seats in this trick whose turn was reached and skipped
+  const leader = state.trickLeader ?? seat
+  const coldRevealed = revealColdAlongPath(
+    seat,
+    leader,
+    hands,
+    trump,
+    state.coldRevealed,
+    false,
+  )
+  purchasedIds = prunePurchased(purchasedIds, hands, coldRevealed, trump)
 
   // Pause so every completed trick (including the final trick) stays visible until Continue
   return {
@@ -678,7 +695,7 @@ export function playCard(state: GameState, seat: Seat, cardId: string): GameStat
     completedTricks,
     pointsTaken,
     activeSeats,
-    coldRevealed: state.coldRevealed,
+    coldRevealed,
     trickLeader: nextLeader,
     purchasedIds,
     currentSeat: null,

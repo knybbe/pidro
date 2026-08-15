@@ -356,22 +356,27 @@ describe('play', () => {
     s = playCard(s, 2, s2Card1.id)
     // Trick completes (pause)
     expect(s.phase).toBe('trick_pause')
-    // East has not played or led yet, so East remains hidden (false)
-    expect(s.coldRevealed[3]).toBe(false)
+    // East had their turn to follow in this trick, so East is now reached and revealed face-up
+    expect(s.coldRevealed[3]).toBe(true)
     // South won the trick with Ace (Team 0), North is now out of trumps
     expect(trumpsInHand(s.hands[2], trump).length).toBe(0)
-    expect(s.coldRevealed[2]).toBe(false) // North hasn't revealed yet either
+    expect(s.coldRevealed[2]).toBe(false) // North hasn't been reached on a new turn yet
 
     // Advance after trick (South leads next trick with K)
     s = continueAfterTrick(s)
     expect(s.phase).toBe('playing')
     expect(s.currentSeat).toBe(0)
-    // East still hidden
-    expect(s.coldRevealed[3]).toBe(false)
+    expect(s.coldRevealed[1]).toBe(true)
+    expect(s.coldRevealed[3]).toBe(true)
+    expect(s.coldRevealed[2]).toBe(false)
 
-    // South leads second card (King)
+    // South leads second card (King). Play order walks past West, North, East (all 0 trumps).
     s = playCard(s, 0, s0Card2.id)
     expect(s.phase).toBe('trick_pause')
+    // North is now reached in this trick and revealed
+    expect(s.coldRevealed[2]).toBe(true)
+    expect(s.coldRevealed).toEqual([false, true, true, true])
+
     // Advance trick pause
     s = continueAfterTrick(s)
     // Hand is now over (all trumps played); all remaining non-trumps are revealed
@@ -626,4 +631,64 @@ describe('Kokkola mode', () => {
     const newDumpCount = s.dumpPiles.reduce((n, p) => n + p.length, 0)
     expect(newDumpCount).toBe(initialDumpCount)
   })
+
+  it('reveals East (Seat 3) when East runs out of trumps and turn reaches East', () => {
+    const trump: Suit = 'S'
+    // Seat 0 (South) has trump Ace & King
+    // Seat 1 (West) has trump Queen
+    // Seat 2 (North) has trump Jack
+    // Seat 3 (East) has 0 trumps (cold) and holds 3 non-trumps
+    const s0A = makeCard('S', 'A')
+    const s0K = makeCard('S', 'K')
+    const s1Q = makeCard('S', 'Q')
+    const s2J = makeCard('S', 'J')
+    const s3Non1 = makeCard('H', '9')
+    const s3Non2 = makeCard('D', '8')
+    const s3Non3 = makeCard('C', '7')
+
+    let s: GameState = {
+      ...createLobbyState(42),
+      trump,
+      hands: [
+        [s0A, s0K],
+        [s1Q],
+        [s2J],
+        [s3Non1, s3Non2, s3Non3],
+      ],
+      activeSeats: [0, 1, 2],
+      coldRevealed: [false, false, false, false],
+      currentSeat: 0,
+      trickLeader: 0,
+      currentTrick: [],
+      completedTricks: [],
+      pointsTaken: [0, 0],
+      phase: 'playing',
+      seats: [
+        { name: 'You', kind: 'human', difficulty: 'medium' },
+        { name: 'West', kind: 'bot', difficulty: 'medium' },
+        { name: 'North', kind: 'bot', difficulty: 'medium' },
+        { name: 'East', kind: 'bot', difficulty: 'medium' },
+      ],
+      dumpPiles: [[], [], [], []],
+      purchasedIds: [],
+    }
+
+    // South leads S-A
+    s = playCard(s, 0, s0A.id)
+    expect(s.currentSeat).toBe(1) // West is next
+    expect(s.coldRevealed[3]).toBe(false) // East not reached yet
+
+    // West plays S-Q
+    s = playCard(s, 1, s1Q.id)
+    expect(s.currentSeat).toBe(2) // North is next
+    expect(s.coldRevealed[3]).toBe(false) // East not reached yet
+
+    // North plays S-J. Next in trick order is East (Seat 3).
+    // East has 0 trumps, so East is skipped and revealed face-up.
+    s = playCard(s, 2, s2J.id)
+    expect(s.phase).toBe('trick_pause')
+    expect(s.coldRevealed[3]).toBe(true) // East is now revealed!
+    expect(s.coldRevealed[1]).toBe(false) // West just played, not reached as cold yet
+  })
 })
+
