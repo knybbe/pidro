@@ -99,39 +99,6 @@ export function InfoModal({ open, onClose }: Props) {
             <p className="info-copyright">{APP_COPYRIGHT}</p>
           </div>
 
-          <div className="info-card info-support-card">
-            <h4>☕ Support & Donations</h4>
-            <p className="info-recipient">
-              Recipient: <code>kny@iki.fi</code>
-            </p>
-            <div className="paypal-button-group" role="group" aria-label="PayPal donation options">
-              <a
-                href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=kny%40iki.fi&currency_code=EUR&amount=1&item_name=Pidro+Card+Game"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="paypal-pill"
-              >
-                1 €
-              </a>
-              <a
-                href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=kny%40iki.fi&currency_code=EUR&amount=4.20&item_name=Pidro+Card+Game"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="paypal-pill"
-              >
-                4.2 €
-              </a>
-              <a
-                href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=kny%40iki.fi&currency_code=EUR&item_name=Pidro+Card+Game"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="paypal-pill"
-              >
-                Other
-              </a>
-            </div>
-          </div>
-
           <div className="info-card info-update-card">
             <h4>🔄 App Updates</h4>
             <p className="hint">

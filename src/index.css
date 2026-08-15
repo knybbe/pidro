@@ -2294,50 +2294,6 @@ button.card.black {
   font-weight: 500;
 }
 
-.info-recipient {
-  margin-bottom: 0.4rem !important;
-  font-size: 0.8rem !important;
-}
-
-.info-recipient code {
-  color: var(--accent);
-  background: #111b14;
-  padding: 0.12rem 0.35rem;
-  border-radius: 4px;
-  font-size: 0.82rem;
-}
-
-.paypal-button-group {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.paypal-pill {
-  flex: 1 1 0%;
-  min-width: 60px;
-  text-align: center;
-  padding: 0.38rem 0.55rem;
-  background: #162b1e;
-  border: 1px solid #35583e;
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 0.84rem;
-  border-radius: 8px;
-  text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
-}
-
-.paypal-pill:hover {
-  background: var(--accent);
-  color: #121008;
-  border-color: var(--accent);
-}
-
-.paypal-pill:active {
-  transform: scale(0.97);
-}
-
 .info-update-card .hint {
   margin: 0 0 0.45rem;
   font-size: 0.76rem;
