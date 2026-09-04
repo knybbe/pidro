@@ -145,6 +145,7 @@ import {
   deleteGameRecord,
   formatGameLogAsText,
   loadGameHistory,
+  mirrorCurrentGameToFolder,
   updateGameHistoryWithState,
   type GameHistoryRecord,
 } from '../engine/history'
@@ -215,13 +216,15 @@ function syncStateAndHistory(
     record = updateGameHistoryWithState(record, next)
   }
 
+  const nextId = record?.id ?? gameId ?? null
   set({
     state: next,
     savedState: next,
-    currentGameId: record?.id ?? gameId ?? null,
+    currentGameId: nextId,
     currentGameRecord: record,
   })
   saveSavedState(next)
+  mirrorCurrentGameToFolder(nextId, next.phase === 'lobby' ? null : next)
 }
 
 function applyHuman(
@@ -382,6 +385,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentGameRecord: record,
     })
     saveSavedState(state)
+    mirrorCurrentGameToFolder(record.id, state)
     queueMicrotask(() => get().kickBots())
   },
 
@@ -597,6 +601,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   backToLobby: () => {
     clearBot(get, set)
+    // Flush latest state into history before leaving the table
+    const { state, currentGameRecord, currentGameId } = get()
+    if (state.phase !== 'lobby') {
+      let record = currentGameRecord
+      if (!record && currentGameId) {
+        record = loadGameHistory().find((g) => g.id === currentGameId) ?? null
+      }
+      if (record) {
+        record = updateGameHistoryWithState(record, state)
+        set({ currentGameRecord: record })
+      } else {
+        const created = createNewGameRecord(state)
+        set({ currentGameId: created.id, currentGameRecord: created })
+        try {
+          localStorage.setItem(CURRENT_GAME_ID_KEY, created.id)
+        } catch {
+          /* ignore */
+        }
+      }
+      mirrorCurrentGameToFolder(get().currentGameId, state)
+    }
     set({ state: createLobbyState(undefined, undefined, get().gameMode) })
   },
 

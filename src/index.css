@@ -2975,3 +2975,54 @@ button.card.black {
 }
 
 
+
+
+/* —— Folder sync / multi-machine —— */
+.folder-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid #243528;
+  border-radius: 12px;
+}
+
+.folder-sync-compact {
+  padding: 0.5rem 0.6rem;
+  background: transparent;
+  border: none;
+}
+
+.folder-sync-panel {
+  margin-top: 0.25rem;
+}
+
+.folder-sync-title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.folder-sync-status {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.folder-sync-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ff8e8e;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+}
+
+.folder-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+

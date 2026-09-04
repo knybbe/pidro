@@ -1,6 +1,7 @@
 import type { BotConfig, Difficulty, RiskLevel } from '../engine'
 import { useGameStore } from '../store/gameStore'
 import { APP_VERSION } from '../version'
+import { FolderSyncControls } from './FolderSyncControls'
 
 const LEVELS: { key: Difficulty; label: string }[] = [
   { key: 'easy', label: 'Easy' },
@@ -133,6 +134,9 @@ export function Lobby({
             📜 Match History
           </button>
         </div>
+        <section className="panel folder-sync-panel">
+          <FolderSyncControls compact />
+        </section>
         <button
           type="button"
           className={`lobby-version-btn version-status-${versionStatus}`}

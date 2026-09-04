@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   formatGameLogAsText,
+  getHistorySaveError,
   loadGameHistory,
+  subscribeHistorySaveError,
   type GameHistoryRecord,
+  type HistorySaveError,
 } from '../engine/history'
 import { suitSymbol } from '../engine/rules'
 import { useGameStore } from '../store/gameStore'
+import { FolderSyncControls } from './FolderSyncControls'
 
 interface Props {
   open: boolean
@@ -13,14 +17,31 @@ interface Props {
 }
 
 export function HistoryModal({ open, onClose }: Props) {
-  const [history, setHistory] = useState<GameHistoryRecord[]>(() => loadGameHistory())
+  const [history, setHistory] = useState<GameHistoryRecord[]>([])
   const [expandedGameId, setExpandedGameId] = useState<string | null>(null)
   const [expandedRoundIdx, setExpandedRoundIdx] = useState<{ [gameId: string]: number | null }>({})
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<HistorySaveError | null>(() =>
+    getHistorySaveError(),
+  )
 
   const loadFromHistory = useGameStore((s) => s.loadGameFromHistory)
   const branchFromRound = useGameStore((s) => s.branchGameFromRound)
   const deleteFromHistory = useGameStore((s) => s.deleteGameFromHistory)
+
+  const refreshHistory = () => {
+    setHistory(loadGameHistory())
+  }
+
+  // Reload whenever the modal opens so the list is never stale
+  useEffect(() => {
+    if (!open) return
+    refreshHistory()
+  }, [open])
+
+  useEffect(() => {
+    return subscribeHistorySaveError(setSaveError)
+  }, [])
 
   if (!open) return null
 
@@ -97,6 +118,14 @@ export function HistoryModal({ open, onClose }: Props) {
         </header>
 
         <div className="modal-body history-modal-body">
+          <FolderSyncControls onHistoryChange={refreshHistory} />
+
+          {saveError && (
+            <p className="folder-sync-error" role="alert">
+              ⚠ {saveError.message}
+            </p>
+          )}
+
           {history.length === 0 ? (
             <div className="history-empty">
               <p className="history-empty-icon">🎴</p>
