@@ -601,7 +601,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   backToLobby: () => {
     clearBot(get, set)
-    // Flush latest state into history before leaving the table
+    // Flush latest state into history before leaving the table, then clear
+    // the in-progress match so a version-check reload cannot bounce back in.
     const { state, currentGameRecord, currentGameId } = get()
     if (state.phase !== 'lobby') {
       let record = currentGameRecord
@@ -610,17 +611,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       if (record) {
         record = updateGameHistoryWithState(record, state)
-        set({ currentGameRecord: record })
       } else {
-        const created = createNewGameRecord(state)
-        set({ currentGameId: created.id, currentGameRecord: created })
-        try {
-          localStorage.setItem(CURRENT_GAME_ID_KEY, created.id)
-        } catch {
-          /* ignore */
-        }
+        record = createNewGameRecord(state)
       }
-      mirrorCurrentGameToFolder(get().currentGameId, state)
+      try {
+        localStorage.removeItem(CURRENT_GAME_ID_KEY)
+      } catch {
+        /* ignore */
+      }
+      mirrorCurrentGameToFolder(null, null)
+      set({
+        state: createLobbyState(undefined, undefined, get().gameMode),
+        savedState: null,
+        currentGameId: null,
+        currentGameRecord: record,
+      })
+      saveSavedState(null)
+      return
     }
     set({ state: createLobbyState(undefined, undefined, get().gameMode) })
   },
