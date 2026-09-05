@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <filter id="cardShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <!-- Dark green casino felt background edge to edge -->
+  <rect width="64" height="64" fill="#0c4328"/>
+  
+  <!-- 70% height playing card (approx 34x45 at 64x64) -->
+  <rect x="15" y="9.5" width="34" height="45" rx="3.5" fill="#fcfcfc" stroke="#e0e6ed" stroke-width="0.7" filter="url(#cardShadow)"/>
+  
+  <!-- Corner index 5 top-left -->
+  <text x="17.5" y="17.5" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#dc2626">5</text>
+
+  <!-- 5 Hearts layout on card -->
+  <g fill="#dc2626">
+    <!-- Top-Left -->
+    <path d="M22,23 C22,20.2 24.5,18.5 26.5,20.8 C28.5,18.5 31,20.2 31,23 C31,27 26.5,30.5 26.5,30.5 C26.5,30.5 22,27 22,23 Z" transform="scale(0.48) translate(19, 14)"/>
+    <!-- Top-Right -->
+    <path d="M22,23 C22,20.2 24.5,18.5 26.5,20.8 C28.5,18.5 31,20.2 31,23 C31,27 26.5,30.5 26.5,30.5 C26.5,30.5 22,27 22,23 Z" transform="scale(0.48) translate(37, 14)"/>
+    <!-- Center -->
+    <path d="M22,23 C22,20.2 24.5,18.5 26.5,20.8 C28.5,18.5 31,20.2 31,23 C31,27 26.5,30.5 26.5,30.5 C26.5,30.5 22,27 22,23 Z" transform="scale(0.58) translate(25.5, 23)"/>
+    <!-- Bottom-Left -->
+    <path d="M22,23 C22,20.2 24.5,18.5 26.5,20.8 C28.5,18.5 31,20.2 31,23 C31,27 26.5,30.5 26.5,30.5 C26.5,30.5 22,27 22,23 Z" transform="scale(0.48) translate(19, 50)"/>
+    <!-- Bottom-Right -->
+    <path d="M22,23 C22,20.2 24.5,18.5 26.5,20.8 C28.5,18.5 31,20.2 31,23 C31,27 26.5,30.5 26.5,30.5 C26.5,30.5 22,27 22,23 Z" transform="scale(0.48) translate(37, 50)"/>
+  </g>
+
+  <!-- Corner index 5 bottom-right (upside down) -->
+  <text x="-46.5" y="-46.5" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#dc2626" transform="rotate(180)">5</text>
+</svg>
