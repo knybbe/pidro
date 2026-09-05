@@ -35,10 +35,12 @@ Lobby: set **easy / medium / hard** independently for West, North (partner), and
 
 1. Create a GitHub repo named **`pidro`** (or change `base` in `vite.config.ts` to match).
 2. Push this project to the repo.
-3. **Settings → Pages → Source**: GitHub Actions.
-4. Push to `main` (or run the **Deploy to GitHub Pages** workflow).
+3. **Settings → Pages → Source**: branch **gh-pages** / `/` (already set).
+4. Push to `main` for production; open/update a PR for a preview under `/<PR#>/`.
+5. Preview index: https://knybbe.github.io/pidro/pr/
 
-Site URL: `https://<user>.github.io/pidro/`
+Production: https://knybbe.github.io/pidro/
+PR preview pattern: https://knybbe.github.io/pidro/<PR#>/
 
 > No backend, login, or multiplayer in this version — pure client-side solo play (works offline after first load via the service worker).
 
