@@ -3,9 +3,16 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+function resolveBasePath(): string {
+  const raw = process.env.BASE_PATH ?? '/pidro/'
+  return raw.endsWith('/') ? raw : `${raw}/`
+}
+
+const base = resolveBasePath()
+
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/pidro/',
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -19,8 +26,8 @@ export default defineConfig({
         background_color: '#0c1410',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/pidro/',
-        scope: '/pidro/',
+        start_url: base,
+        scope: base,
         icons: [
           {
             src: 'pwa-192.png',

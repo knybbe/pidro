@@ -145,6 +145,7 @@ import {
   deleteGameRecord,
   formatGameLogAsText,
   loadGameHistory,
+  mirrorCurrentGameToFolder,
   updateGameHistoryWithState,
   type GameHistoryRecord,
 } from '../engine/history'
@@ -215,13 +216,15 @@ function syncStateAndHistory(
     record = updateGameHistoryWithState(record, next)
   }
 
+  const nextId = record?.id ?? gameId ?? null
   set({
     state: next,
     savedState: next,
-    currentGameId: record?.id ?? gameId ?? null,
+    currentGameId: nextId,
     currentGameRecord: record,
   })
   saveSavedState(next)
+  mirrorCurrentGameToFolder(nextId, next.phase === 'lobby' ? null : next)
 }
 
 function applyHuman(
@@ -382,6 +385,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentGameRecord: record,
     })
     saveSavedState(state)
+    mirrorCurrentGameToFolder(record.id, state)
     queueMicrotask(() => get().kickBots())
   },
 
@@ -597,6 +601,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   backToLobby: () => {
     clearBot(get, set)
+    // Flush latest state into history before leaving the table, then clear
+    // the in-progress match so a version-check reload cannot bounce back in.
+    const { state, currentGameRecord, currentGameId } = get()
+    if (state.phase !== 'lobby') {
+      let record = currentGameRecord
+      if (!record && currentGameId) {
+        record = loadGameHistory().find((g) => g.id === currentGameId) ?? null
+      }
+      if (record) {
+        record = updateGameHistoryWithState(record, state)
+      } else {
+        record = createNewGameRecord(state)
+      }
+      try {
+        localStorage.removeItem(CURRENT_GAME_ID_KEY)
+      } catch {
+        /* ignore */
+      }
+      mirrorCurrentGameToFolder(null, null)
+      set({
+        state: createLobbyState(undefined, undefined, get().gameMode),
+        savedState: null,
+        currentGameId: null,
+        currentGameRecord: record,
+      })
+      saveSavedState(null)
+      return
+    }
     set({ state: createLobbyState(undefined, undefined, get().gameMode) })
   },
 

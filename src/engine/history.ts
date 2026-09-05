@@ -9,8 +9,40 @@ import type {
   TrickPlay,
 } from './types'
 
-export const GAME_HISTORY_KEY = 'pidro-game-history'
-const MAX_HISTORY_GAMES = 50
+import {
+  GAME_HISTORY_KEY as PERSIST_HISTORY_KEY,
+  clearLocalHistory,
+  compactGameState,
+  getFolderSyncState,
+  getHistorySaveError,
+  initFolderSync,
+  isFolderSyncSupported,
+  mapSyncFolder,
+  readLocalHistory,
+  requestSyncPermission,
+  subscribeFolderSync,
+  subscribeHistorySaveError,
+  syncHistoryWithFolder,
+  unmapSyncFolder,
+  writeCurrentGameToFolder,
+  writeLocalHistory,
+} from './persistence'
+
+export type { FolderSyncState, HistorySaveError, SyncStatus } from './persistence'
+export {
+  getFolderSyncState,
+  getHistorySaveError,
+  initFolderSync,
+  isFolderSyncSupported,
+  mapSyncFolder,
+  requestSyncPermission,
+  subscribeFolderSync,
+  subscribeHistorySaveError,
+  unmapSyncFolder,
+}
+
+export const GAME_HISTORY_KEY = PERSIST_HISTORY_KEY
+export const MAX_HISTORY_GAMES = 50
 
 export interface TrickHistoryLog {
   trickNumber: number
@@ -62,40 +94,41 @@ export interface GameHistoryRecord {
 }
 
 export function loadGameHistory(): GameHistoryRecord[] {
-  try {
-    const raw = localStorage.getItem(GAME_HISTORY_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) {
-      return parsed.filter((g) => g && typeof g.id === 'string' && Array.isArray(g.rounds))
-    }
-  } catch (e) {
-    console.error('Failed to load game history:', e)
-  }
-  return []
+  return readLocalHistory()
 }
 
-export function saveGameHistory(history: GameHistoryRecord[]): void {
+/**
+ * Persist history to localStorage (compacted) and schedule a folder sync write
+ * when a sync folder is mapped. Save failures are surfaced via
+ * getHistorySaveError() / subscribeHistorySaveError().
+ */
+export function saveGameHistory(history: GameHistoryRecord[]): GameHistoryRecord[] {
+  const saved = writeLocalHistory(history, MAX_HISTORY_GAMES)
+  // Fire-and-forget folder mirror so both backends share this pipeline
+  void mirrorHistoryToFolder(saved)
+  return saved
+}
+
+async function mirrorHistoryToFolder(history: GameHistoryRecord[]): Promise<void> {
   try {
-    const trimmed = history.slice(0, MAX_HISTORY_GAMES)
-    localStorage.setItem(GAME_HISTORY_KEY, JSON.stringify(trimmed))
+    const result = await syncHistoryWithFolder(history)
+    if (result.synced && result.history !== history) {
+      // Folder had newer/other games — merge back into localStorage carefully
+      writeLocalHistory(result.history, MAX_HISTORY_GAMES)
+    }
   } catch (e) {
-    console.error('Failed to save game history:', e)
+    console.error('Folder history sync failed:', e)
   }
 }
 
 export function deleteGameRecord(id: string): GameHistoryRecord[] {
   const history = loadGameHistory().filter((g) => g.id !== id)
-  saveGameHistory(history)
-  return history
+  return saveGameHistory(history)
 }
 
 export function clearAllGameHistory(): void {
-  try {
-    localStorage.removeItem(GAME_HISTORY_KEY)
-  } catch {
-    /* ignore */
-  }
+  clearLocalHistory()
+  void mirrorHistoryToFolder([])
 }
 
 export function upsertGameRecord(record: GameHistoryRecord): GameHistoryRecord[] {
@@ -106,8 +139,29 @@ export function upsertGameRecord(record: GameHistoryRecord): GameHistoryRecord[]
   } else {
     history.unshift(record)
   }
-  saveGameHistory(history)
-  return history
+  return saveGameHistory(history)
+}
+
+/**
+ * Load local history, merge with mapped sync folder (last-write-wins per id by
+ * updatedAt), write merged result to both backends. Call on startup / focus.
+ */
+export async function syncGameHistoryFromFolder(): Promise<GameHistoryRecord[]> {
+  const local = loadGameHistory()
+  const result = await syncHistoryWithFolder(local)
+  if (result.synced) {
+    writeLocalHistory(result.history, MAX_HISTORY_GAMES)
+    return result.history
+  }
+  return local
+}
+
+/** Best-effort write of the active match into the sync folder. */
+export function mirrorCurrentGameToFolder(
+  gameId: string | null,
+  state: GameState | null,
+): void {
+  void writeCurrentGameToFolder(gameId, state)
 }
 
 export function createNewGameRecord(state: GameState, date = new Date()): GameHistoryRecord {
@@ -126,7 +180,7 @@ export function createNewGameRecord(state: GameState, date = new Date()): GameHi
       [...state.hands[3]],
     ],
     initialStock: [...state.stock],
-    initialStateSnapshot: JSON.parse(JSON.stringify(state)),
+    initialStateSnapshot: compactGameState(state),
     bids: [],
     bidWinner: null,
     trump: null,
@@ -150,7 +204,7 @@ export function createNewGameRecord(state: GameState, date = new Date()): GameHi
     winnerTeam: null,
     finalScores: [...state.scores],
     rounds: [firstRound],
-    latestStateSnapshot: JSON.parse(JSON.stringify(state)),
+    latestStateSnapshot: compactGameState(state),
   }
 
   upsertGameRecord(record)
@@ -170,7 +224,7 @@ export function updateGameHistoryWithState(
     updatedAt: date.toISOString(),
     gameMode: state.gameMode,
     finalScores: [...state.scores],
-    latestStateSnapshot: JSON.parse(JSON.stringify(state)),
+    latestStateSnapshot: compactGameState(state),
   }
 
   if (state.phase === 'game_over') {
@@ -196,7 +250,7 @@ export function updateGameHistoryWithState(
         [...state.hands[3]],
       ],
       initialStock: [...state.stock],
-      initialStateSnapshot: JSON.parse(JSON.stringify(state)),
+      initialStateSnapshot: compactGameState(state),
       bids: [],
       bidWinner: null,
       trump: null,

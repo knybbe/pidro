@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { HistoryModal } from './components/HistoryModal'
 import { InfoModal } from './components/InfoModal'
 import { Lobby } from './components/Lobby'
 import { RulesModal } from './components/RulesModal'
 import { Table } from './components/Table'
+import {
+  initFolderSync,
+  syncGameHistoryFromFolder,
+} from './engine/history'
 import { useVersionCheck } from './hooks/useVersionCheck'
 import { useGameStore } from './store/gameStore'
 
@@ -13,6 +17,32 @@ export default function App() {
   const [infoOpen, setInfoOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const { status: versionStatus } = useVersionCheck()
+
+  useEffect(() => {
+    let cancelled = false
+    const sync = async () => {
+      await initFolderSync()
+      if (cancelled) return
+      await syncGameHistoryFromFolder()
+    }
+    void sync()
+
+    const onFocus = () => {
+      void syncGameHistoryFromFolder()
+    }
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        void syncGameHistoryFromFolder()
+      }
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [])
 
   return (
     <div className="app">

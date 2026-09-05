@@ -1,0 +1,149 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  ci:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        env:
+          BASE_PATH: ${{ github.event_name == 'pull_request' && format('/pidro/{0}/', github.event.pull_request.number) || '/pidro/' }}
+        run: npm run build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  deploy:
+    needs: ci
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Deploy PR preview
+        if: github.event_name == 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          keep_files: true
+          destination_dir: ${{ github.event.pull_request.number }}
+
+      - name: Deploy production
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          keep_files: true
+
+      - name: Comment preview URL
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pages-preview
+          message: |
+            ## Preview deployment
+
+            https://knybbe.github.io/pidro/${{ github.event.pull_request.number }}/
+
+            Built from this PR when CI passes. Production stays at https://knybbe.github.io/pidro/.
+
+            Active previews index: https://knybbe.github.io/pidro/pr/
+
+      - name: Generate PR index
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/generate-pr-index.py pr-index-out
+
+      - name: Publish PR index
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: pr-index-out
+          keep_files: true
+          destination_dir: pr
+
+  cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Remove PR preview folder
+        run: |
+          set -euo pipefail
+          PR="${{ github.event.pull_request.number }}"
+          if [ ! -d "$PR" ]; then
+            echo "No preview folder for PR #${PR}"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git rm -rf "$PR"
+            git commit -m "chore: remove Pages preview for PR #${PR}"
+            git push
+          fi
+
+      - name: Checkout branch for index script
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Generate PR index
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 repo/scripts/generate-pr-index.py pr-index-out
+
+      - name: Publish PR index
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: pr-index-out
+          keep_files: true
+          destination_dir: pr
+

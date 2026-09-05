@@ -47,17 +47,40 @@ describe('gameStore persistence and resume', () => {
     expect(parsed.phase).toBe(currentPhase)
   })
 
-  it('allows resuming an ongoing match from the lobby', () => {
+  it('clears savedState and localStorage game keys when returning to lobby', () => {
+    const store = useGameStore.getState()
+    store.start(['medium', 'medium', 'medium'], 'classic')
+    expect(useGameStore.getState().state.phase).not.toBe('lobby')
+    expect(localStorage.getItem('pidro-saved-game-state')).not.toBeNull()
+    expect(localStorage.getItem('pidro-current-game-id')).not.toBeNull()
+    expect(useGameStore.getState().savedState).not.toBeNull()
+    expect(useGameStore.getState().currentGameId).not.toBeNull()
+
+    store.backToLobby()
+
+    const after = useGameStore.getState()
+    expect(after.state.phase).toBe('lobby')
+    expect(after.savedState).toBeNull()
+    expect(after.currentGameId).toBeNull()
+    expect(after.currentGameRecord).not.toBeNull()
+    expect(localStorage.getItem('pidro-saved-game-state')).toBeNull()
+    expect(localStorage.getItem('pidro-current-game-id')).toBeNull()
+  })
+
+  it('allows resuming an ongoing match from saved localStorage', () => {
     const store = useGameStore.getState()
     store.start(['medium', 'medium', 'medium'], 'classic')
     const ongoingState = useGameStore.getState().state
+    const savedRaw = localStorage.getItem('pidro-saved-game-state')
+    expect(savedRaw).not.toBeNull()
 
-    // Go back to lobby (simulating user exiting to menu)
-    store.backToLobby()
-    expect(useGameStore.getState().state.phase).toBe('lobby')
-    expect(useGameStore.getState().savedState).not.toBeNull()
+    // Simulate lobby UI while an in-progress match remains persisted (e.g. mid-reload)
+    useGameStore.setState({
+      state: { ...ongoingState, phase: 'lobby' },
+      savedState: null,
+    })
+    localStorage.setItem('pidro-saved-game-state', savedRaw!)
 
-    // Resume match from lobby
     useGameStore.getState().resume()
     expect(useGameStore.getState().state.phase).toBe(ongoingState.phase)
     expect(useGameStore.getState().state.dealer).toBe(ongoingState.dealer)
